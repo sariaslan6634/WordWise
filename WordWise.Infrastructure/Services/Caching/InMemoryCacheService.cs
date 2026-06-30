@@ -10,21 +10,10 @@ using WordWise.Application.Common.Interfaces;
 
 namespace WordWise.Infrastructure.Services.Caching
 {
-    public class InMemoryCacheService : ICacheService
+    public class InMemoryCacheService(IMemoryCache _cache, ILogger<InMemoryCacheService> _logger) : ICacheService
     {
-        private readonly IMemoryCache _cache;
-        private readonly ILogger _logger;
-
         public static readonly ConcurrentDictionary<string, byte> _keyRegistry = new();
         public static readonly TimeSpan DefaultExpiration = TimeSpan.FromMinutes(30);
-        public InMemoryCacheService(ILogger logger, IMemoryCache cache)
-        {
-            _logger = logger;
-            _cache = cache;
-        }
-
-
-
 
         public Task<T?> GetAsync<T>(string key, CancellationToken cancellationToken = default) where T : class
         {

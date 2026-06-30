@@ -11,7 +11,7 @@ namespace WordWise.WebAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class AuthController(IMediator _mediator) : ControllerBase
+    public class AuthsController(IMediator _mediator) : ControllerBase
     {
         [HttpPost("register")]
         [ProducesResponseType(typeof(ApiResponse<AuthResponseDto>), StatusCodes.Status201Created)]
@@ -34,7 +34,7 @@ namespace WordWise.WebAPI.Controllers
             CancellationToken cancellationToken)
         {
             var result = await _mediator.Send(command, cancellationToken);
-            return Ok(ApiResponse<AuthResponseDto>.Ok(result, "Login successful."));
+            return Ok(ApiResponse<AuthResponseDto>.Ok(result, "Giriş başarılı."));
         }
 
         [HttpGet("confirm-email")]

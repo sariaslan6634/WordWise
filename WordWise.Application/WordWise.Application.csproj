@@ -20,8 +20,4 @@
     <ProjectReference Include="..\WordWise.Domain\WordWise.Domain.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Features\Word\Commands\DeleteWord\" />
-  </ItemGroup>
-
 </Project>
