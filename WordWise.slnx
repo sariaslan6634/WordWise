@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/Src/">
+    <Project Path="WordWise.Application/WordWise.Application.csproj" Id="cf34cbfa-6bbe-431c-bc4d-b8e273fa9e88" />
+    <Project Path="WordWise.Domain/WordWise.Domain.csproj" Id="b7300cac-119f-4554-b399-a0e230bd0634" />
+    <Project Path="WordWise.Infrastructure/WordWise.Infrastructure.csproj" Id="0345f681-8f16-4ac6-87ed-8911af7b25df" />
+    <Project Path="WordWise.WebAPI/WordWise.WebAPI.csproj" Id="56c6ea64-a02d-4d31-804f-5f772455b37f" />
+  </Folder>
+  <Folder Name="/Test/" />
+</Solution>

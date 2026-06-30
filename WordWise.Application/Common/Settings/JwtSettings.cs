@@ -1,0 +1,18 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace WordWise.Application.Common.Settings
+{
+    public class JwtSettings
+    {
+        public const string SectionName = "JwtSettings";
+
+        public string SecretKey { get; set; } = string.Empty;
+        public string Issure { get; set; } = string.Empty;
+        public string Audience { get; set; } = string.Empty;
+        public int Expiryminutes { get; set; } = 60;
+    }
+}
