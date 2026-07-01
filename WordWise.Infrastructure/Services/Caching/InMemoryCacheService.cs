@@ -72,9 +72,9 @@ namespace WordWise.Infrastructure.Services.Caching
                 _keyRegistry.TryRemove(evictedKey.ToString()!, out _);
             });
 
-            _cache.Remove(key);
-            _keyRegistry.TryRemove(key, out _);
-            _logger.LogDebug("Cache REMOVE: {Key}", key);
+            _cache.Set(key, value, options);
+            _keyRegistry.TryAdd(key, 0);
+            _logger.LogDebug("Cache SET: {Key}, TTL: {Ttl}", key, expiration ?? DefaultExpiration);
             return Task.CompletedTask;
         }
     }

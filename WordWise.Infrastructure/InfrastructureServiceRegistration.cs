@@ -48,7 +48,7 @@ namespace WordWise.Infrastructure
                     ValidateAudience = true,
                     ValidateLifetime = true,
                     ValidateIssuerSigningKey = true,
-                    ValidIssuer = jwtsettings.Issure,
+                    ValidIssuer = jwtsettings.Issuer,
                     ValidAudience = jwtsettings.Audience,
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtsettings.SecretKey)),
                     ClockSkew = TimeSpan.Zero

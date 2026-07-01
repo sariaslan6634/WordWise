@@ -20,8 +20,13 @@ namespace WordWise.Application.Features.Words.Mapping
                     opt => opt.MapFrom(src => DeserializeJsonList(src.AntonymsJson)))
                 .ForMember(dest => dest.Videos,
                     opt => opt.MapFrom(src => src.Videos));
-
             CreateMap<Video, WordVideoDto>();
+
+
+            CreateMap<Word, WordSummaryDto>()
+               .ForMember(dest => dest.CefrLevel,
+                   opt => opt.MapFrom(src => src.CefrLevel != null ? src.CefrLevel.ToString() : null));
+
         }
         private static List<string> DeserializeJsonList(string? json)
         {

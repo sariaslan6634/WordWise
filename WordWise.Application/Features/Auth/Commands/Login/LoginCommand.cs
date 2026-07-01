@@ -33,7 +33,7 @@ namespace WordWise.Application.Features.Auth.Commands.Login
                 Name = user.Name,
                 Role = user.Role.ToString(),
                 Token = token,
-                ExpiresAt = DateTime.UtcNow.AddMinutes(_jwtSettings.Value.Expiryminutes)
+                ExpiresAt = DateTime.UtcNow.AddMinutes(_jwtSettings.Value.ExpiryMinutes)
             };
         }
     }

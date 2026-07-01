@@ -30,10 +30,10 @@ namespace WordWise.Infrastructure.Services
             };
 
             var token = new JwtSecurityToken(
-                issuer: _settings.Issure,
+                issuer: _settings.Issuer,
                 audience: _settings.Audience,
                 claims: claims,
-                expires : DateTime.UtcNow.AddMinutes(_settings.Expiryminutes),
+                expires : DateTime.UtcNow.AddMinutes(_settings.ExpiryMinutes),
                 signingCredentials: credentials
                 );
 
