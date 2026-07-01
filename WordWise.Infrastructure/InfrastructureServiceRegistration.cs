@@ -31,7 +31,8 @@ namespace WordWise.Infrastructure
 
             services.AddScoped<IWordWiseDbContext, WordWiseDbContext>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
-            services.AddScoped<IJwtService, JwtService>();
+            services.AddScoped<IJwtService, JwtService>(); 
+            services.AddHttpClient<IYouTubeService, YouTubeService>();
 
             var jwtsettings = configuration
                 .GetSection(JwtSettings.SectionName)
