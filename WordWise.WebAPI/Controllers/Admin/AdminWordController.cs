@@ -11,9 +11,9 @@ using WordWise.Application.Features.Words.Queries.GetAllWords;
 
 namespace WordWise.WebAPI.Controllers.Admin
 {
-    [Route("api/[controller]")]
     [ApiController]
     [Authorize(Roles = "Admin")]
+    [Route("api/admin/[controller]")]
     public class AdminWordController(IMediator _mediator) : ControllerBase
     {
         [HttpGet]
