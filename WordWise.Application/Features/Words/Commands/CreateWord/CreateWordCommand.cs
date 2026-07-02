@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using WordWise.Application.Common.Constants;
 using WordWise.Application.Common.Exceptions;
 using WordWise.Application.Common.Interfaces;
+using WordWise.Application.Features.Videos.Commands.FetchVideoCandidates;
 using WordWise.Domain.Entities;
 using WordWise.Domain.Enums;
 
@@ -27,7 +28,7 @@ namespace WordWise.Application.Features.Words.Commands.CreateWord
         string? Category,
         bool IsPublished) : IRequest<Guid>;
     public class CreateWordCommandhandler(IWordWiseDbContext _context,
-        ICacheService _cache) : IRequestHandler<CreateWordCommand, Guid>
+        ICacheService _cache,IMediator _mediator) : IRequestHandler<CreateWordCommand, Guid>
     {
         public async Task<Guid> Handle(CreateWordCommand request, CancellationToken cancellationToken)
         {
@@ -60,7 +61,9 @@ namespace WordWise.Application.Features.Words.Commands.CreateWord
             await _context.Words.AddAsync(word, cancellationToken);
             await _context.SaveChangesAsync(cancellationToken);
 
-            await _cache.RemoveAsync(CacheKeys.WordByText(word.Text), cancellationToken);
+            _ = Task.Run(() => _mediator.Send(
+                new FetchVideoCandidatesCommand(word.Id, word.Text),
+                CancellationToken.None), CancellationToken.None);
 
             return word.Id;
         }
