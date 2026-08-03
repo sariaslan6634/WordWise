@@ -26,7 +26,7 @@ namespace WordWise.Application.Features.Videos.Commands.FetchVideoCandidates
             if (!wordExists)
                 throw new NotFoundException(nameof(Word), request.WordId);
 
-            var searchQuery = $"{request.WordText} english pronunciation example";
+            var searchQuery = $"\"{request.WordText}\" english pronunciation example";
             var candidates = await _youTubeService.SearchVideoAsync(searchQuery, _youTubeSettings.Value.MaxCandidateCount, cancellationToken);
 
             if(!candidates.Any())
