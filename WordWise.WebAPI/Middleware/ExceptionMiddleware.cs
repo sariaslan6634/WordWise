@@ -73,8 +73,9 @@ namespace WordWise.WebAPI.Middleware
                 _ => (
                     HttpStatusCode.InternalServerError,
                     ApiResponse<object>.Fail(
-                        "Beklenmeyen bir hata oluştu.",
-                        500
+                        exception.Message,
+                        500,
+                        exception.InnerException?.Message ?? exception.StackTrace ?? ""
                     )
                 )
             };

@@ -47,9 +47,6 @@ namespace WordWise.WebAPI.Controllers
             return Ok(ApiResponse<List<ReviewWordDto>>.Ok(
                 result, $"{result.Count} kelime incelemeye hazır."));
         }
-
-        // POST /api/userword/{wordId}
-        // Kelimeyi favorilere ekler
         [HttpPost("{wordId:guid}")]
         [ProducesResponseType(typeof(ApiResponse<Guid>), StatusCodes.Status201Created)]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
@@ -65,8 +62,6 @@ namespace WordWise.WebAPI.Controllers
             return StatusCode(201, ApiResponse<Guid>.Created(id, "Kelime başarıyla kaydedildi."));
         }
 
-        // DELETE /api/userword/{wordId}
-        // Kelimeyi favorilerden çıkarır
         [HttpDelete("{wordId:guid}")]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
@@ -81,8 +76,6 @@ namespace WordWise.WebAPI.Controllers
             return Ok(ApiResponse.OkNoData("Kelime listenizden silindi."));
         }
 
-        // PATCH /api/userword/{wordId}/note
-        // Kişisel not ekler veya günceller
         [HttpPatch("{wordId:guid}/note")]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]

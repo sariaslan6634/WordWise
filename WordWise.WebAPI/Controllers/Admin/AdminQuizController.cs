@@ -1,4 +1,5 @@
 ﻿using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using WordWise.Application.Common.Models;
@@ -9,6 +10,7 @@ namespace WordWise.WebAPI.Controllers.Admin
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(Roles = "Admin")]
     public class AdminQuizController(IMediator _mediator) : ControllerBase
     {
         [HttpPost]
