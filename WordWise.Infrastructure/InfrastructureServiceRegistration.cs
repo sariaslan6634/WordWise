@@ -11,6 +11,7 @@ using WordWise.Infrastructure.Persistence;
 using WordWise.Infrastructure.Persistence.Context;
 using WordWise.Infrastructure.Services;
 using WordWise.Infrastructure.Services.Caching;
+using WordWise.Infrastructure.Services.DictionaryService;
 using WordWise.Infrastructure.Services.Email;
 
 namespace WordWise.Infrastructure
@@ -65,6 +66,9 @@ namespace WordWise.Infrastructure
 
             services.AddMemoryCache();
             services.AddSingleton<ICacheService, InMemoryCacheService>();
+
+            services.AddHttpClient<IFreeDictionaryService, FreeDictionaryService>();
+            services.AddHttpClient<IDatamuseService, DatamuseService>();
 
             return services;
         }

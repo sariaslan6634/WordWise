@@ -3,8 +3,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using WordWise.Application.Common.Models;
+using WordWise.Application.Features.Words.Commands.BulkImportWords;
 using WordWise.Application.Features.Words.Commands.CreateWord;
 using WordWise.Application.Features.Words.Commands.DeleteWord;
+using WordWise.Application.Features.Words.Commands.PublishWord;
 using WordWise.Application.Features.Words.Commands.UpdateWord;
 using WordWise.Application.Features.Words.Dtos;
 using WordWise.Application.Features.Words.Queries.GetAllWords;
@@ -74,6 +76,33 @@ namespace WordWise.WebAPI.Controllers.Admin
 
             await _mediator.Send(command, cancellationToken);
             return Ok(ApiResponse.OkNoData("Kelime güncellendi"));
-        }  
+        }
+        [HttpPost("bulk-import")]
+        [ProducesResponseType(typeof(ApiResponse<WordImportResultDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> BulkImport(
+            [FromBody] BulkImportWordsCommand command,
+            CancellationToken cancellationToken)
+        {
+            var result = await _mediator.Send(command, cancellationToken);
+
+            return Ok(ApiResponse<WordImportResultDto>.Ok(
+                result,
+                $"{result.SuccessCount} words imported, " +
+                $"{result.SkippedCount} skipped, " +
+                $"{result.FailedCount} failed."));
+        }
+
+        [HttpPut("{id:guid}/publish")]
+        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status422UnprocessableEntity)]
+        public async Task<IActionResult> Publish(
+    Guid id,
+    CancellationToken cancellationToken)
+        {
+            await _mediator.Send(new PublishWordCommand(id), cancellationToken);
+            return Ok(ApiResponse.OkNoData("Word published successfully."));
+        }
     }
 }
