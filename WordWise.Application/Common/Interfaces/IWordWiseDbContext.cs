@@ -18,6 +18,7 @@ namespace WordWise.Application.Common.Interfaces
         public DbSet<UserQuizAnswer> UserQuizAnswers { get;  }
         public DbSet<UserXpHistory> UserXpHistories { get; }
         public DbSet<VideoCandidate> VideoCandidates { get; }
+        public DbSet<UserLoginEvent> UserLoginEvents { get; }
 
         int SaveChanges();
         Task<int> SaveChangesAsync(CancellationToken cancellationToken);

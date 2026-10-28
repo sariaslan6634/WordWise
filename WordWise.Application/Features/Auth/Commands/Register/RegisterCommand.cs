@@ -39,7 +39,9 @@ namespace WordWise.Application.Features.Auth.Commands.Register
                 Email = request.Email.ToLower().Trim(),
                 Name = request.Name.Trim(),
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-                Role = UserRole.User
+                Role = UserRole.User,
+                EmailConfirmationTokenHash = tokenHash,
+                EmailConfirmationTokenExpiresAt = DateTime.UtcNow.AddHours(24)
             };
 
             await _context.Users.AddAsync(user, cancellationToken);

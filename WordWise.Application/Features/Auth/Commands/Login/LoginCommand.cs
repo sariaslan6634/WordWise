@@ -24,6 +24,16 @@ namespace WordWise.Application.Features.Auth.Commands.Login
             if(user is null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
                 throw new UnauthorizedException("Gecersiz eposta veya şifre.");
 
+            if (!user.IsEmailConfirmed)
+                throw new UnauthorizedException("Giriş yapmadan önce e-posta adresinizi onaylayın.");
+
+            _context.UserLoginEvents.Add(new WordWise.Domain.Entities.UserLoginEvent
+            {
+                UserId = user.Id,
+                LoggedInAt = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync(cancellationToken);
+
             var token = _jwtService.GenerateToken(user.Id, user.Email, user.Role);
 
             return new AuthResponseDto 

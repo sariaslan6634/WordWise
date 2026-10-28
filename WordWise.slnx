@@ -6,4 +6,5 @@
     <Project Path="WordWise.WebAPI/WordWise.WebAPI.csproj" Id="56c6ea64-a02d-4d31-804f-5f772455b37f" />
   </Folder>
   <Folder Name="/Test/" />
+  <Project Path="WordWise.Tests/WordWise.Tests.csproj" Id="6e115bf6-19cf-4d98-b63b-e24ced633f61" />
 </Solution>

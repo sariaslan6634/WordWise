@@ -74,6 +74,10 @@ namespace WordWise.Infrastructure.Persistence.Configuyrations
                 .IsRequired()
                 .HasDefaultValue(false);
 
+            builder.Property(x => x.IsApproved)
+                .IsRequired()
+                .HasDefaultValue(false);
+
             builder.HasMany(x => x.Videos)
                 .WithOne(x => x.Word)
                 .HasForeignKey(x => x.WordId)

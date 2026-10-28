@@ -13,8 +13,7 @@ using WordWise.Domain.Entities;
 
 namespace WordWise.Application.Features.Videos.Commands.FetchVideoCandidates
 {
-    public record FetchVideoCandidatesCommand(Guid WordId, string WordText
-        ) : IRequest<int>;
+    public record FetchVideoCandidatesCommand(Guid WordId) : IRequest<int>;
     public class FetchVideoCandidatesCommandHanld(IWordWiseDbContext _context,
         IYouTubeService _youTubeService,
         IOptions<YoutubeSettings> _youTubeSettings
@@ -22,11 +21,16 @@ namespace WordWise.Application.Features.Videos.Commands.FetchVideoCandidates
     {
         public async Task<int> Handle(FetchVideoCandidatesCommand request, CancellationToken cancellationToken)
         {
-            var wordExists = await _context.Words.AnyAsync(x => x.Id == request.WordId, cancellationToken);
-            if (!wordExists)
+            var word = await _context.Words.FirstOrDefaultAsync(x => x.Id == request.WordId, cancellationToken);
+            if (word is null)
                 throw new NotFoundException(nameof(Word), request.WordId);
 
-            var searchQuery = $"\"{request.WordText}\" english pronunciation example";
+            var existingCount = await _context.VideoCandidates
+                .CountAsync(x => x.WordId == request.WordId && !x.IsRejected, cancellationToken);
+            if (existingCount > 0)
+                return existingCount;
+
+            var searchQuery = $"\"{word.Text}\" english pronunciation example";
             var candidates = await _youTubeService.SearchVideoAsync(searchQuery, _youTubeSettings.Value.MaxCandidateCount, cancellationToken);
 
             if(!candidates.Any())

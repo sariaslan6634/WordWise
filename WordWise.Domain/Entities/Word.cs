@@ -24,6 +24,7 @@ namespace WordWise.Domain.Entities
         public DateTime? ImportedAt { get; set; }
 
         public bool IsPublished { get; set; } = false;
+        public bool IsApproved { get; set; } = false;
 
         // Navigation properties
         public ICollection<UserWord> UserWords { get; set; } = new List<UserWord>();

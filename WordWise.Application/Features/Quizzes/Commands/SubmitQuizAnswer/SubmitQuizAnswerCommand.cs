@@ -28,8 +28,13 @@ namespace WordWise.Application.Features.Quizzes.Commands.SubmitQuizAnswer
         {
             var question = await _context.QuizQuestions
                 .FirstOrDefaultAsync(x => x.Id == request.QuizQuestionId, cancellationToken);
-            if (question is null)
+            if (question is null || !question.IsPublished)
                 throw new NotFoundException(nameof(QuizQuestion), request.QuizQuestionId);
+
+            var userExists = await _context.Users.AnyAsync(x => x.Id == request.UserId, cancellationToken);
+            if (!userExists)
+                throw new NotFoundException(nameof(User), request.UserId);
+
             var isCorrect = string.Equals(request.GivenAnswer.Trim(),
                question.CorrectAnswer.Trim(),
                StringComparison.OrdinalIgnoreCase);

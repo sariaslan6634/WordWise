@@ -62,7 +62,7 @@ namespace WordWise.Application.Features.Words.Commands.CreateWord
             await _context.SaveChangesAsync(cancellationToken);
 
             _ = Task.Run(() => _mediator.Send(
-                new FetchVideoCandidatesCommand(word.Id, word.Text),
+                new FetchVideoCandidatesCommand(word.Id),
                 CancellationToken.None), CancellationToken.None);
 
             return word.Id;

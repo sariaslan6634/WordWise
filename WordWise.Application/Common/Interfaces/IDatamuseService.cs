@@ -15,5 +15,8 @@ namespace WordWise.Application.Common.Interfaces
         Task<List<string>> GetAntonymsAsync(
             string word,
             CancellationToken cancellationToken = default);
+
+        Task<List<string>> GetDailyWordSuggestionsAsync(
+            CancellationToken cancellationToken = default);
     }
 }

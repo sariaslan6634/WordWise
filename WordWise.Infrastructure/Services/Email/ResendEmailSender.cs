@@ -32,7 +32,7 @@ namespace WordWise.Infrastructure.Services.Email
             {
                 from = _settings.FromAddress,
                 to = new[] { toEmail },
-                Subject,
+                subject = Subject,
                 html = htmlBody
             };
             var json = JsonSerializer.Serialize(payload);

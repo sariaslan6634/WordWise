@@ -73,9 +73,8 @@ namespace WordWise.WebAPI.Middleware
                 _ => (
                     HttpStatusCode.InternalServerError,
                     ApiResponse<object>.Fail(
-                        exception.Message,
-                        500,
-                        exception.InnerException?.Message ?? exception.StackTrace ?? ""
+                        "Beklenmeyen bir sunucu hatası oluştu.",
+                        500
                     )
                 )
             };

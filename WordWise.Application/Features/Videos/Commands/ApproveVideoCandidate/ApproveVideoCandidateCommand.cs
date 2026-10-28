@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using WordWise.Application.Common.Constants;
 using WordWise.Application.Common.Exceptions;
 using WordWise.Application.Common.Interfaces;
 using WordWise.Domain.Entities;
@@ -18,7 +19,7 @@ namespace WordWise.Application.Features.Videos.Commands.ApproveVideoCandidate
         int StartSec,
         int EndSec,
         string? Transcript) : IRequest<Guid>;
-    public class ApproveVideoCandidateCommandHandler(IWordWiseDbContext _context) : IRequestHandler<ApproveVideoCandidateCommand, Guid>
+    public class ApproveVideoCandidateCommandHandler(IWordWiseDbContext _context, ICacheService _cache) : IRequestHandler<ApproveVideoCandidateCommand, Guid>
     {
         public async Task<Guid> Handle(ApproveVideoCandidateCommand request, CancellationToken cancellationToken)
         {
@@ -59,8 +60,11 @@ namespace WordWise.Application.Features.Videos.Commands.ApproveVideoCandidate
             candidate.IsApproved = true;
             candidate.ApprovedByUserId = request.ApprovedByUserId;
             candidate.ApprovedAt = DateTime.UtcNow;
+            candidate.Word.IsApproved = true;
+            candidate.Word.IsPublished = true;
 
             await _context.SaveChangesAsync(cancellationToken);
+            await _cache.RemoveAsync(CacheKeys.WordByText(candidate.Word.Text), cancellationToken);
             return video.Id;
         }
     }

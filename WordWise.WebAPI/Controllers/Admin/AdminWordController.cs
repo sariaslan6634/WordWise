@@ -3,20 +3,23 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using WordWise.Application.Common.Models;
+using WordWise.Application.Common.Interfaces;
 using WordWise.Application.Features.Words.Commands.BulkImportWords;
 using WordWise.Application.Features.Words.Commands.CreateWord;
 using WordWise.Application.Features.Words.Commands.DeleteWord;
 using WordWise.Application.Features.Words.Commands.PublishWord;
 using WordWise.Application.Features.Words.Commands.UpdateWord;
+using WordWise.Application.Features.Videos.Commands.FetchVideoCandidates;
 using WordWise.Application.Features.Words.Dtos;
 using WordWise.Application.Features.Words.Queries.GetAllWords;
+using WordWise.Domain.Enums;
 
 namespace WordWise.WebAPI.Controllers.Admin
 {
     [ApiController]
     [Authorize(Roles = "Admin")]
     [Route("api/admin/[controller]")]
-    public class AdminWordController(IMediator _mediator) : ControllerBase
+    public class AdminWordController(IMediator _mediator, IDatamuseService _datamuseService) : ControllerBase
     {
         [HttpGet]
         [ProducesResponseType(typeof(ApiResponse<WordSummaryDto>), StatusCodes.Status200OK)]
@@ -24,10 +27,14 @@ namespace WordWise.WebAPI.Controllers.Admin
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20,
             [FromQuery] string? searchText = null,
+            [FromQuery] bool? isApproved = null,
+            [FromQuery] CefrLevel? cefrLevel = null,
+            [FromQuery] string? partOfSpeech = null,
+            [FromQuery] string? status = null,
             CancellationToken cancellationToken =default)
         {
             var result = await _mediator.Send(
-                new GetAllWordsQuery(page, pageSize, searchText), cancellationToken);
+                new GetAllWordsQuery(page, pageSize, searchText, isApproved, cefrLevel, partOfSpeech, status), cancellationToken);
 
             return Ok(ApiResponse<PagedResponse<WordSummaryDto>>.Ok(result));
         }
@@ -91,6 +98,19 @@ namespace WordWise.WebAPI.Controllers.Admin
                 $"{result.SuccessCount} words imported, " +
                 $"{result.SkippedCount} skipped, " +
                 $"{result.FailedCount} failed."));
+        }
+
+        [HttpPost("daily-candidates")]
+        public async Task<IActionResult> ImportDailyCandidates(CancellationToken cancellationToken)
+        {
+            var words = await _datamuseService.GetDailyWordSuggestionsAsync(cancellationToken);
+            if (words.Count == 0)
+                return StatusCode(503, ApiResponse<WordImportResultDto>.Fail(
+                    "Günlük kelime kaynağı şu anda yanıt vermiyor.", StatusCodes.Status503ServiceUnavailable));
+
+            var result = await _mediator.Send(new BulkImportWordsCommand(words), cancellationToken);
+            return Ok(ApiResponse<WordImportResultDto>.Ok(result,
+                $"{result.SuccessCount} kelime adayı eklendi; {result.SkippedCount} mevcut, {result.FailedCount} sözlükte bulunamadı."));
         }
 
         [HttpPut("{id:guid}/publish")]

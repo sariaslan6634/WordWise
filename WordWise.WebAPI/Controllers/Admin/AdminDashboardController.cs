@@ -6,6 +6,7 @@ using WordWise.Application.Common.Models;
 using WordWise.Application.Features.Admin.Dtos;
 using WordWise.Application.Features.Admin.Queries.GetDashboardStats;
 using WordWise.Application.Features.Admin.Queries.GetUserList;
+using WordWise.Application.Features.Admin.Queries.GetPendingContent;
 
 namespace WordWise.WebAPI.Controllers.Admin
 {
@@ -32,6 +33,14 @@ namespace WordWise.WebAPI.Controllers.Admin
         {
             var result = await _mediator.Send(new GetUserListQuery(page, pageSize, searchText), cancellationToken);
             return Ok(ApiResponse<PagedResponse<AdminUserListDto>>.Ok(result));
+        }
+
+        [HttpGet("pending-content")]
+        [ProducesResponseType(typeof(ApiResponse<PendingContentDto>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetPendingContent(CancellationToken cancellationToken)
+        {
+            var result = await _mediator.Send(new GetPendingContentQuery(), cancellationToken);
+            return Ok(ApiResponse<PendingContentDto>.Ok(result));
         }
     }
 }

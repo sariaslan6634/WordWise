@@ -27,12 +27,18 @@ namespace WordWise.Infrastructure.Services.Email
 
         public bool VerifyToken(string token, string storedHash)
         {
-            var computedHash = HashToken(storedHash);
+            var computedHash = HashToken(token);
 
-            return CryptographicOperations.FixedTimeEquals(
-                Convert.FromBase64String(computedHash),
-                Convert.FromBase64String(storedHash)
-                );
+            try
+            {
+                return CryptographicOperations.FixedTimeEquals(
+                    Convert.FromBase64String(computedHash),
+                    Convert.FromBase64String(storedHash));
+            }
+            catch (FormatException)
+            {
+                return false;
+            }
         }
     }
 }

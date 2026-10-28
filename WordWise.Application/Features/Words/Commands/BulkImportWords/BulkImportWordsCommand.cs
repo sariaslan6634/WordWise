@@ -15,9 +15,7 @@ using WordWise.Domain.Entities;
 
 namespace WordWise.Application.Features.Words.Commands.BulkImportWords
 {
-    public record BulkImportWordsCommand(
-            List<string> Words,
-            bool IsPublished = false) : IRequest<WordImportResultDto>;
+    public record BulkImportWordsCommand(List<string> Words) : IRequest<WordImportResultDto>;
 
     // ── Handler ───────────────────────────────────────────────────────────────
     public class BulkImportWordsCommandHandler(
@@ -91,7 +89,8 @@ namespace WordWise.Application.Features.Words.Commands.BulkImportWords
                     Definition = definition,
                     Ipa = ipa,
                     PartOfSpeech = partOfSpeech,
-                    IsPublished = request.IsPublished,
+                    IsPublished = false,
+                    IsApproved = false,
                     SourceProvider = "FreeDictionary",
                     SourceUrl = $"https://api.dictionaryapi.dev/api/v2/entries/en/{wordText}",
                     ImportedAt = DateTime.UtcNow,
@@ -118,7 +117,7 @@ namespace WordWise.Application.Features.Words.Commands.BulkImportWords
                 {
                     using var scope = _serviceProvider.CreateScope();
                     var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-                    await mediator.Send(new FetchVideoCandidatesCommand(wordId, wordText));
+                    await mediator.Send(new FetchVideoCandidatesCommand(wordId));
                 });
                 result.SuccessCount++;
 

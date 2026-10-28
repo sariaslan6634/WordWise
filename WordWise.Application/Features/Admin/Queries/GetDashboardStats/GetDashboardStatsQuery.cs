@@ -17,6 +17,8 @@ namespace WordWise.Application.Features.Admin.Queries.GetDashboardStats
         {
             var now = DateTime.UtcNow;
             var sevenDaysAgo = now.AddDays(-7);
+            var thirtyDaysAgo = now.Date.AddDays(-29);
+            var last24Hours = now.AddHours(-24);
             var todayStart = now.Date;
 
             var totalWords = await _context.Words.CountAsync(cancellationToken);
@@ -38,6 +40,35 @@ namespace WordWise.Application.Features.Admin.Queries.GetDashboardStats
                 .Select(x => x.UserId)
                 .Distinct()
                 .CountAsync(cancellationToken);
+
+            var activeUsersLast30Days = await _context.UserLoginEvents
+                .Where(x => x.LoggedInAt >= thirtyDaysAgo)
+                .Select(x => x.UserId)
+                .Distinct()
+                .CountAsync(cancellationToken);
+
+            var dailyUserActivity = await _context.UserLoginEvents
+                .Where(x => x.LoggedInAt >= thirtyDaysAgo)
+                .GroupBy(x => x.LoggedInAt.Date)
+                .Select(g => new DailyUserActivityDto
+                {
+                    Date = g.Key,
+                    ActiveUsers = g.Select(x => x.UserId).Distinct().Count(),
+                    Sessions = g.Count()
+                })
+                .OrderBy(x => x.Date)
+                .ToListAsync(cancellationToken);
+
+            var wordsAddedLast24Hours = await _context.Words
+                .CountAsync(x => x.CreatedAt >= last24Hours, cancellationToken);
+            var videosAddedLast24Hours = await _context.Videos
+                .CountAsync(x => x.CreatedAt >= last24Hours, cancellationToken);
+            var sessionsOpenedLast24Hours = await _context.UserLoginEvents
+                .CountAsync(x => x.LoggedInAt >= last24Hours, cancellationToken);
+            var usersRegisteredLast24Hours = await _context.Users
+                .CountAsync(x => x.CreatedAt >= last24Hours, cancellationToken);
+            var pendingWordCount = await _context.Words
+                .CountAsync(x => !x.IsApproved, cancellationToken);
 
             var quizAnswersLast7Days = await _context.UserQuizAnswers
                .CountAsync(x => x.AnsweredAt >= sevenDaysAgo, cancellationToken);
@@ -93,7 +124,14 @@ namespace WordWise.Application.Features.Admin.Queries.GetDashboardStats
                 TotalUsers = totalUsers,
                 NewUsersToday = newUsersToday,
                 ActiveUsersLast7Days = activeUsersLast7Days,
+                ActiveUsersLast30Days = activeUsersLast30Days,
                 QuizAnswersLast7Days = quizAnswersLast7Days,
+                WordsAddedLast24Hours = wordsAddedLast24Hours,
+                VideosAddedLast24Hours = videosAddedLast24Hours,
+                SessionsOpenedLast24Hours = sessionsOpenedLast24Hours,
+                UsersRegisteredLast24Hours = usersRegisteredLast24Hours,
+                PendingWordCount = pendingWordCount,
+                DailyUserActivity = dailyUserActivity,
                 PendingVideoCandidates = pendingVideoCandidates,
                 TodayTotalAnswers = todayTotalAnswers,
                 TodayCorrectAnswers = todayCorrectAnswers,

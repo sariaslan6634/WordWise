@@ -15,6 +15,7 @@ namespace WordWise.Application.Features.Words.Dtos
         public string? CefrLevel { get; set; }
         public string? Category { get; set; }
         public bool IsPublished { get; set; }
+        public bool IsApproved { get; set; }
         public DateTime CreatedAt { get; set; }
     }
 }

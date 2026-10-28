@@ -8,6 +8,7 @@ using WordWise.Application.Features.Videos.Commands.ApproveVideoCandidate;
 using WordWise.Application.Features.Videos.Commands.FetchVideoCandidates;
 using WordWise.Application.Features.Videos.Commands.RejectVideoCandidate;
 using WordWise.Application.Features.Videos.Dtos;
+using WordWise.Application.Features.Videos.Queries.GetVideoCandidateReview;
 using WordWise.Application.Features.Videos.Queries.GetVideoCandidatesByWordId;
 
 namespace WordWise.WebAPI.Controllers.Admin
@@ -29,15 +30,26 @@ namespace WordWise.WebAPI.Controllers.Admin
             return Ok(ApiResponse<List<VideoCandidateDto>>.Ok(result));
         }
 
+        [HttpGet("candidates/{candidateId:guid}/review")]
+        [ProducesResponseType(typeof(ApiResponse<VideoCandidateReviewDto>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetCandidateReview(
+            Guid candidateId,
+            CancellationToken cancellationToken)
+        {
+            var result = await _mediator.Send(
+                new GetVideoCandidateReviewQuery(candidateId), cancellationToken);
+
+            return Ok(ApiResponse<VideoCandidateReviewDto>.Ok(result));
+        }
+
         [HttpPost("fetch-candidates/{wordId:guid}")]
         [ProducesResponseType(typeof(ApiResponse<int>), StatusCodes.Status200OK)]
         public async Task<IActionResult> FetchCandidates(
             Guid wordId,
-            [FromQuery] string wordText,
             CancellationToken cancellationToken)
         {
             var count = await _mediator.Send(
-                new FetchVideoCandidatesCommand(wordId, wordText), cancellationToken);
+                new FetchVideoCandidatesCommand(wordId), cancellationToken);
 
             return Ok(ApiResponse<int>.Ok(count, $"{count} video candidates fetched."));
         }
