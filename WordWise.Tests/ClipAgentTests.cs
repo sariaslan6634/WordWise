@@ -70,7 +70,8 @@ public class ClipAgentTests
         Assert.True(span < 3.0, $"konuşma süresi {span}");
         Assert.Equal(7, clip.CaptionSeconds);
 
-        var result = ClipQualityChecker.Check(clip, GoodDetails(), track);
+        var longVideo = GoodDetails() with { DurationSeconds = 300 }; // klip 240. sn civarında
+        var result = ClipQualityChecker.Check(clip, longVideo, track);
         Assert.True(result.Passed, string.Join(" | ", result.Reasons));
         Assert.Contains(result.Warnings, w => w.Contains("ekranda"));
     }
