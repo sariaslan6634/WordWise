@@ -1,0 +1,30 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using WordWise.Domain.Entities;
+using WordWise.Infrastructure.Persistence.Configurations;
+
+namespace WordWise.Infrastructure.Persistence.Configuyrations
+{
+    public class VideoClipConfiguration : IEntityTypeConfiguration<VideoClip>
+    {
+        public void Configure(EntityTypeBuilder<VideoClip> builder)
+        {
+            BaseEntityConfiguration.Configure(builder);
+
+            builder.ToTable("VideoClips");
+
+            builder.Property(x => x.YoutubeId).IsRequired().HasMaxLength(20);
+            builder.Property(x => x.Text).IsRequired().HasMaxLength(1000);
+            builder.Property(x => x.WordTimingsJson).IsRequired().HasColumnType("nvarchar(max)");
+            builder.Property(x => x.QcReasons).HasColumnType("nvarchar(max)").IsRequired(false);
+            builder.Property(x => x.QcWarnings).HasColumnType("nvarchar(max)").IsRequired(false);
+
+            builder.HasOne(x => x.VideoCandidate)
+                .WithMany()
+                .HasForeignKey(x => x.VideoCandidateId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.HasIndex(x => x.VideoCandidateId);
+        }
+    }
+}

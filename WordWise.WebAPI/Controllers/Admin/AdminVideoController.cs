@@ -4,6 +4,9 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using WordWise.Application.Common.Models;
+using WordWise.Application.Features.Clips.Commands.GenerateClips;
+using WordWise.Application.Features.Clips.Dtos;
+using WordWise.Application.Features.Clips.Queries.GetClips;
 using WordWise.Application.Features.Videos.Commands.ApproveVideoCandidate;
 using WordWise.Application.Features.Videos.Commands.FetchVideoCandidates;
 using WordWise.Application.Features.Videos.Commands.RejectVideoCandidate;
@@ -52,6 +55,27 @@ namespace WordWise.WebAPI.Controllers.Admin
                 new FetchVideoCandidatesCommand(wordId), cancellationToken);
 
             return Ok(ApiResponse<int>.Ok(count, $"{count} video candidates fetched."));
+        }
+
+        [HttpPost("candidates/{candidateId:guid}/generate-clips")]
+        [ProducesResponseType(typeof(ApiResponse<List<VideoClipDto>>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GenerateClips(
+            Guid candidateId,
+            CancellationToken cancellationToken)
+        {
+            var clips = await _mediator.Send(new GenerateClipsCommand(candidateId), cancellationToken);
+            var passed = clips.Count(c => c.QcStatus == "Passed");
+            return Ok(ApiResponse<List<VideoClipDto>>.Ok(clips, $"{clips.Count} clips generated, {passed} passed quality control."));
+        }
+
+        [HttpGet("candidates/{candidateId:guid}/clips")]
+        [ProducesResponseType(typeof(ApiResponse<List<VideoClipDto>>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetClips(
+            Guid candidateId,
+            CancellationToken cancellationToken)
+        {
+            var clips = await _mediator.Send(new GetClipsByCandidateQuery(candidateId), cancellationToken);
+            return Ok(ApiResponse<List<VideoClipDto>>.Ok(clips));
         }
 
         [HttpPost("candidates/{candidateId:guid}/approve")]

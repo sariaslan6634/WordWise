@@ -69,6 +69,8 @@ namespace WordWise.Infrastructure
 
             services.AddHttpClient<IFreeDictionaryService, FreeDictionaryService>();
             services.AddHttpClient<IDatamuseService, DatamuseService>();
+            services.AddHttpClient<ICaptionService, YouTubeCaptionService>();
+            services.AddHttpClient<IVideoDetailsService, YouTubeVideoDetailsService>();
 
             return services;
         }
