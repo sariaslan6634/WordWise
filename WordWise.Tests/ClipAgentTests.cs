@@ -17,7 +17,7 @@ public class ClipAgentTests
     {
         Line(2, 2.5, "[Music]"),
         Line(10, 3, "Daddy is the best cook in the world."),
-        Line(14, 2, "Thanks a lot!"),
+        Line(14, 2, "Thanks!"),
         Line(40, 3.5, "I really think that we should leave now."),
         Line(45, 3, "She told me she would come tomorrow."),
         Line(75, 3, "It was the beginning of a long journey."),
@@ -33,7 +33,7 @@ public class ClipAgentTests
         Assert.NotEmpty(clips);
         Assert.All(clips, c => Assert.DoesNotContain("[Music]", c.Text));
         Assert.DoesNotContain(clips, c => c.Text.Contains("Hello. How"));
-        Assert.DoesNotContain(clips, c => c.Text == "Thanks a lot!"); // 3 kelime < 4
+        Assert.DoesNotContain(clips, c => c.Text == "Thanks!"); // 1 kelime < 3
 
         for (var i = 1; i < clips.Count; i++)
             Assert.True(clips[i].Start - clips[i - 1].Start >= 20 - 0.5);
@@ -56,6 +56,23 @@ public class ClipAgentTests
         Assert.Equal(tokens.Length, clip.Words.Count);
         for (var i = 1; i < clip.Words.Count; i++)
             Assert.True(clip.Words[i].Start >= clip.Words[i - 1].Start);
+    }
+
+    [Fact]
+    public void Selector_caps_speech_duration_when_caption_stays_long_on_screen()
+    {
+        // Altyazı 7 sn ekranda kalıyor ama 4 kelimelik cümle ~2.4 sn sürer
+        var lines = new List<CaptionLine> { Line(240.24, 7, "Come on, be careful.") };
+        var track = new CaptionTrack("en", false, lines);
+
+        var clip = Assert.Single(ClipSelector.Select(lines, videoDurationSec: 300));
+        var span = clip.Words[^1].End - clip.Words[0].Start;
+        Assert.True(span < 3.0, $"konuşma süresi {span}");
+        Assert.Equal(7, clip.CaptionSeconds);
+
+        var result = ClipQualityChecker.Check(clip, GoodDetails(), track);
+        Assert.True(result.Passed, string.Join(" | ", result.Reasons));
+        Assert.Contains(result.Warnings, w => w.Contains("ekranda"));
     }
 
     [Fact]

@@ -84,7 +84,7 @@ namespace WordWise.Application.Features.Clips.Services
                 var wordCount = WordCount(text);
                 var start = ordered[group[0]].Start;
                 var end = ordered[group[^1]].End;
-                var duration = end - start;
+                var duration = end - start; // altyazının ekranda kalma süresi
 
                 if (wordCount < options.MinWords || wordCount > options.MaxWords) continue;
                 if (duration < options.MinDurationSec || duration > options.MaxDurationSec) continue;
@@ -93,18 +93,21 @@ namespace WordWise.Application.Features.Clips.Services
                 if (letters < text.Count(c => !char.IsWhiteSpace(c)) * 0.7) continue;
                 if (!seen.Add(Normalize(text))) continue;
 
-                var words = BuildWords(group.Select(g => ordered[g]).ToList(), text, start, end);
-                var rate = wordCount / duration;
+                // Altyazı ekranda konuşmadan uzun kalabilir; konuşma süresini kelime sayısından tahmin et.
+                var speakEnd = Math.Min(end, start + wordCount * 0.45 + 0.6);
+                var words = BuildWords(group.Select(g => ordered[g]).ToList(), text, start, speakEnd);
+                if (words.Count > 0) speakEnd = Math.Max(speakEnd, words[^1].End);
+                var rate = wordCount / Math.Max(0.1, speakEnd - start);
                 var score = -Math.Abs(wordCount - 8)
                             - Math.Abs(rate - 2.8) * 2
                             + (EndsSentenceRegex.IsMatch(text) ? 2 : 0)
                             + (char.IsUpper(text[0]) ? 1 : 0);
 
                 var padStart = Math.Max(0, start - options.PaddingBeforeSec);
-                var padEnd = end + options.PaddingAfterSec;
+                var padEnd = speakEnd + options.PaddingAfterSec;
                 if (videoDurationSec.HasValue) padEnd = Math.Min(padEnd, videoDurationSec.Value);
 
-                scored.Add((new ClipCandidate(Math.Round(padStart, 2), Math.Round(padEnd, 2), text, words), score));
+                scored.Add((new ClipCandidate(Math.Round(padStart, 2), Math.Round(padEnd, 2), text, words, Math.Round(duration, 2)), score));
             }
 
             // 3) En iyileri seç, birbirine yakın başlayanları ele

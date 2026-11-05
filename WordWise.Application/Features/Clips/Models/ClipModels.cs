@@ -21,18 +21,20 @@ namespace WordWise.Application.Features.Clips.Models
         string PrivacyStatus,
         bool AgeRestricted);
 
-    public record ClipCandidate(double Start, double End, string Text, IReadOnlyList<CaptionWord> Words);
+    /// <param name="CaptionSeconds">Altyazı satırının ekranda kaldığı süre (konuşma süresi bundan kısa olabilir). 0 = bilinmiyor.</param>
+    public record ClipCandidate(double Start, double End, string Text, IReadOnlyList<CaptionWord> Words, double CaptionSeconds = 0);
 
     public record QcResult(bool Passed, IReadOnlyList<string> Reasons, IReadOnlyList<string> Warnings);
 
     public class ClipSelectorOptions
     {
-        public int MinWords { get; set; } = 4;
+        public int MinWords { get; set; } = 3;
         public int MaxWords { get; set; } = 12;
-        public double MinDurationSec { get; set; } = 1.5;
-        public double MaxDurationSec { get; set; } = 8;
+        public double MinDurationSec { get; set; } = 0.8;
+        /// <summary>Altyazı satırının ekranda kalabileceği en uzun süre.</summary>
+        public double MaxDurationSec { get; set; } = 12;
         /// <summary>İki klibin başlangıcı arasındaki en az süre (aynı yerden tekrar klip çıkmasın).</summary>
-        public double MinGapSec { get; set; } = 20;
+        public double MinGapSec { get; set; } = 15;
         public int MaxClips { get; set; } = 6;
         public double PaddingBeforeSec { get; set; } = 0.2;
         public double PaddingAfterSec { get; set; } = 0.3;
