@@ -27,6 +27,11 @@ namespace WordWise.Domain.Entities
 
         public bool IsAutoCaption { get; set; }
 
+        /// <summary>Admin onayladı; öğrencilere gösterilir. Sadece kalite kontrolünden geçen klipler yayınlanabilir.</summary>
+        public bool IsPublished { get; set; } = false;
+
+        public bool IsRejected { get; set; } = false;
+
         public ClipQcStatus QcStatus { get; set; } = ClipQcStatus.Pending;
 
         /// <summary>Uygun değilse nedenler (satır satır).</summary>

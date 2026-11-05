@@ -8,6 +8,7 @@ const menu = [
   { href: "/admin/words", label: "Kelime kütüphanesi", icon: "Aa" },
   { href: "/admin/word-candidates", label: "Kelime adayları", icon: "＋" },
   { href: "/admin/videos", label: "Video adayları", icon: "▷" },
+  { href: "/admin/clips", label: "Video klipleri", icon: "✂" },
   { href: "/admin/users", label: "Kullanıcılar", icon: "♧" },
 ];
 

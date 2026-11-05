@@ -42,15 +42,19 @@ namespace WordWise.Application.Features.Clips.Services
 
             var picked = ClipSelector.Select(track.Lines, videoDurationSec: details.DurationSeconds);
 
-            // Aynı videodan önceki üretimleri sil (yeniden üretimde kopya birikmesin)
+            // Aynı videodan yayınlanmamış önceki üretimleri sil (yeniden üretimde kopya birikmesin).
+            // Yayınlanmış klipler korunur; aynı cümle tekrar eklenmez.
             var previous = await _context.VideoClips
                 .Where(x => x.YoutubeId == youtubeId)
                 .ToListAsync(cancellationToken);
-            foreach (var old in previous) old.IsDeleted = true;
+            foreach (var old in previous.Where(x => !x.IsPublished)) old.IsDeleted = true;
+            var publishedKeys = previous.Where(x => x.IsPublished)
+                .Select(x => ClipSelector.Normalize(x.Text)).ToHashSet();
 
             var created = new List<VideoClip>();
             foreach (var clip in picked)
             {
+                if (publishedKeys.Contains(ClipSelector.Normalize(clip.Text))) continue;
                 var qc = ClipQualityChecker.Check(clip, details, track);
                 var entity = new VideoClip
                 {

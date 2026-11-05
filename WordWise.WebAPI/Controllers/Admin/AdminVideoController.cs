@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using WordWise.Application.Common.Models;
 using WordWise.Application.Features.Clips.Commands.GenerateClips;
+using WordWise.Application.Features.Clips.Commands.ReviewClip;
 using WordWise.Application.Features.Clips.Dtos;
 using WordWise.Application.Features.Clips.Queries.GetClips;
 using WordWise.Application.Features.Videos.Commands.ApproveVideoCandidate;
@@ -78,6 +79,30 @@ namespace WordWise.WebAPI.Controllers.Admin
             var clips = await _mediator.Send(new GenerateClipsFromVideoCommand(dto.Url), cancellationToken);
             var passed = clips.Count(c => c.QcStatus == "Passed");
             return Ok(ApiResponse<List<VideoClipDto>>.Ok(clips, $"{clips.Count} clips generated, {passed} passed quality control."));
+        }
+
+        [HttpGet("clips")]
+        [ProducesResponseType(typeof(ApiResponse<List<VideoClipDto>>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetRecentClips(CancellationToken cancellationToken)
+        {
+            var clips = await _mediator.Send(new GetRecentClipsQuery(), cancellationToken);
+            return Ok(ApiResponse<List<VideoClipDto>>.Ok(clips));
+        }
+
+        [HttpPost("clips/{clipId:guid}/publish")]
+        [ProducesResponseType(typeof(ApiResponse<VideoClipDto>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> PublishClip(Guid clipId, CancellationToken cancellationToken)
+        {
+            var clip = await _mediator.Send(new PublishClipCommand(clipId), cancellationToken);
+            return Ok(ApiResponse<VideoClipDto>.Ok(clip, "Clip published."));
+        }
+
+        [HttpPost("clips/{clipId:guid}/reject")]
+        [ProducesResponseType(typeof(ApiResponse<VideoClipDto>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> RejectClip(Guid clipId, CancellationToken cancellationToken)
+        {
+            var clip = await _mediator.Send(new RejectClipCommand(clipId), cancellationToken);
+            return Ok(ApiResponse<VideoClipDto>.Ok(clip, "Clip rejected."));
         }
 
         [HttpGet("clips/by-video/{youtubeId}")]

@@ -16,6 +16,9 @@ namespace WordWise.Application.Features.Clips.Dtos
         public string Text { get; set; } = string.Empty;
         public List<CaptionWord> Words { get; set; } = new();
         public bool IsAutoCaption { get; set; }
+        public bool IsPublished { get; set; }
+        public bool IsRejected { get; set; }
+        public DateTime CreatedAt { get; set; }
 
         /// <summary>"Passed" (uygun) veya "Failed" (uygun değil).</summary>
         public string QcStatus { get; set; } = string.Empty;
@@ -44,6 +47,9 @@ namespace WordWise.Application.Features.Clips.Dtos
             Text = clip.Text,
             Words = JsonSerializer.Deserialize<List<CaptionWord>>(clip.WordTimingsJson, JsonOptions) ?? new(),
             IsAutoCaption = clip.IsAutoCaption,
+            IsPublished = clip.IsPublished,
+            IsRejected = clip.IsRejected,
+            CreatedAt = clip.CreatedAt,
             QcStatus = clip.QcStatus == ClipQcStatus.Passed ? "Passed" : clip.QcStatus == ClipQcStatus.Failed ? "Failed" : "Pending",
             QcReasons = SplitLines(clip.QcReasons),
             QcWarnings = SplitLines(clip.QcWarnings),

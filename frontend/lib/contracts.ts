@@ -73,6 +73,24 @@ export interface WordDetail {
   videos: { id: string; youtubeId: string; title: string; channelTitle: string | null; thumbnailUrl: string | null; startSec: number; endSec: number; displayOrder: number }[];
 }
 
+export interface VideoClip {
+  id: string;
+  videoCandidateId: string | null;
+  sourceTitle: string | null;
+  youtubeId: string;
+  startSec: number;
+  endSec: number;
+  text: string;
+  words: { text: string; start: number; end: number }[];
+  isAutoCaption: boolean;
+  isPublished: boolean;
+  isRejected: boolean;
+  createdAt: string;
+  qcStatus: "Passed" | "Failed" | "Pending";
+  qcReasons: string[];
+  qcWarnings: string[];
+}
+
 export interface VideoCandidateReview {
   candidate: VideoCandidate;
   word: WordDetail;
