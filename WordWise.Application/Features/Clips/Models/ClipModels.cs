@@ -30,9 +30,15 @@ namespace WordWise.Application.Features.Clips.Models
     {
         public int MinWords { get; set; } = 3;
         public int MaxWords { get; set; } = 12;
+        /// <summary>Art arda konuşan iki kişiyi tek klipte birleştirirken izin verilen en çok kelime.</summary>
+        public int MaxDialogueWords { get; set; } = 18;
+        /// <summary>Bir klipteki en çok cümle sayısı (2 = bir kişi konuşur, diğeri hemen cevap verir).</summary>
+        public int MaxSentences { get; set; } = 2;
+        /// <summary>İki konuşma arasında bu kadar saniyeye kadar boşluk olsa da tek klip sayılır.</summary>
+        public double MaxTurnGapSec { get; set; } = 1.5;
         public double MinDurationSec { get; set; } = 0.8;
         /// <summary>Altyazı satırının ekranda kalabileceği en uzun süre.</summary>
-        public double MaxDurationSec { get; set; } = 12;
+        public double MaxDurationSec { get; set; } = 14;
         /// <summary>İki klibin başlangıcı arasındaki en az süre (aynı yerden tekrar klip çıkmasın).</summary>
         public double MinGapSec { get; set; } = 15;
         public int MaxClips { get; set; } = 6;

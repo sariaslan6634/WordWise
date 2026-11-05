@@ -11,6 +11,7 @@ namespace WordWise.Application.Features.Clips.Services
     public static class ClipSelector
     {
         private static readonly Regex NoiseRegex = new(@"\[[^\]]*\]|\([^)]*\)|[♪♫]|>>", RegexOptions.Compiled);
+        private static readonly Regex DashRegex = new(@"(?<!\S)[-–—](?=\s)", RegexOptions.Compiled);
         private static readonly Regex SpaceRegex = new(@"\s+", RegexOptions.Compiled);
         private static readonly Regex MidSentenceBreak = new(@"[.!?][""')\]]?\s+\p{Lu}", RegexOptions.Compiled);
         private static readonly Regex EndsSentenceRegex = new(@"[.!?][""')\]]?$", RegexOptions.Compiled);
@@ -20,6 +21,7 @@ namespace WordWise.Application.Features.Clips.Services
         {
             var text = WebUtility.HtmlDecode(raw ?? string.Empty);
             text = NoiseRegex.Replace(text, " ");
+            text = DashRegex.Replace(text, " "); // konuşmacı değişimini gösteren "- " işaretleri
             return SpaceRegex.Replace(text, " ").Trim();
         }
 
@@ -75,27 +77,44 @@ namespace WordWise.Application.Features.Clips.Services
             }
             Flush();
 
-            // 2) Gruplardan aday cümleler üret
+            // 2) Aday kümeler: tek cümleler + art arda konuşan iki kişinin diyalog klipleri
+            var candidateSets = new List<List<int>>();
+            for (var g = 0; g < groups.Count; g++)
+            {
+                candidateSets.Add(groups[g]);
+                if (g + 1 < groups.Count && options.MaxSentences >= 2)
+                {
+                    var gap = ordered[groups[g + 1][0]].Start - groups[g].Max(k => ordered[k].End);
+                    if (gap <= options.MaxTurnGapSec)
+                        candidateSets.Add(groups[g].Concat(groups[g + 1]).ToList());
+                }
+            }
+
             var scored = new List<(ClipCandidate Clip, double Score)>();
             var seen = new HashSet<string>();
-            foreach (var group in groups)
+            foreach (var set in candidateSets)
             {
-                var text = string.Join(" ", group.Select(g => cleaned[g]));
+                var text = string.Join(" ", set.Select(k => cleaned[k]));
                 var wordCount = WordCount(text);
-                var start = ordered[group[0]].Start;
-                var end = ordered[group[^1]].End;
+                var start = set.Min(k => ordered[k].Start);
+                var end = set.Max(k => ordered[k].End);
                 var duration = end - start; // altyazının ekranda kalma süresi
 
-                if (wordCount < options.MinWords || wordCount > options.MaxWords) continue;
+                var sentenceCount = transcriptIsPunctuated
+                    ? MidSentenceBreak.Matches(text).Count + 1
+                    : (groups.Contains(set) ? 1 : 2);
+                if (sentenceCount > options.MaxSentences) continue;
+                var maxWords = sentenceCount == 1 ? options.MaxWords : options.MaxDialogueWords;
+
+                if (wordCount < options.MinWords || wordCount > maxWords) continue;
                 if (duration < options.MinDurationSec || duration > options.MaxDurationSec) continue;
-                if (transcriptIsPunctuated && MidSentenceBreak.IsMatch(text)) continue; // tek cümle olmalı
                 var letters = text.Count(char.IsLetter);
                 if (letters < text.Count(c => !char.IsWhiteSpace(c)) * 0.7) continue;
                 if (!seen.Add(Normalize(text))) continue;
 
                 // Altyazı ekranda konuşmadan uzun kalabilir; konuşma süresini kelime sayısından tahmin et.
                 var speakEnd = Math.Min(end, start + wordCount * 0.45 + 0.6);
-                var words = BuildWords(group.Select(g => ordered[g]).ToList(), text, start, speakEnd);
+                var words = BuildWords(set.OrderBy(k => k).Select(k => ordered[k]).ToList(), text, start, speakEnd);
                 if (words.Count > 0) speakEnd = Math.Max(speakEnd, words[^1].End);
                 var rate = wordCount / Math.Max(0.1, speakEnd - start);
                 var score = -Math.Abs(wordCount - 8)
@@ -107,6 +126,14 @@ namespace WordWise.Application.Features.Clips.Services
                 var padEnd = speakEnd + options.PaddingAfterSec;
                 if (videoDurationSec.HasValue) padEnd = Math.Min(padEnd, videoDurationSec.Value);
 
+                // Aralığa başka bir kişinin altyazısı taşıyorsa bu aday uygunsuz olur; onu içeren diyalog adayı zaten üretildi.
+                var members = new HashSet<int>(set);
+                var spillsOver = ordered.Where((l, idx) =>
+                    !members.Contains(idx)
+                    && Math.Min(l.End, padEnd) - Math.Max(l.Start, padStart) > 0.5
+                    && WordCount(cleaned[idx]) >= 2).Any();
+                if (spillsOver) continue;
+
                 scored.Add((new ClipCandidate(Math.Round(padStart, 2), Math.Round(padEnd, 2), text, words, Math.Round(duration, 2)), score));
             }
 
@@ -115,7 +142,7 @@ namespace WordWise.Application.Features.Clips.Services
             foreach (var (clip, _) in scored.OrderByDescending(s => s.Score).ThenBy(s => s.Clip.Start))
             {
                 if (picked.Count >= options.MaxClips) break;
-                if (picked.Any(p => Math.Abs(p.Start - clip.Start) < options.MinGapSec)) continue;
+                if (picked.Any(p => Math.Abs(p.Start - clip.Start) < options.MinGapSec || (p.Start < clip.End && clip.Start < p.End))) continue;
                 picked.Add(clip);
             }
 

@@ -21,7 +21,7 @@ public class ClipAgentTests
         Line(40, 3.5, "I really think that we should leave now."),
         Line(45, 3, "She told me she would come tomorrow."),
         Line(75, 3, "It was the beginning of a long journey."),
-        Line(110, 3, "Hello. How are you doing today my friend?"),
+        Line(110, 3, "Hello. How are you? I am fine today."),
         Line(150, 3, "We need to talk about the plan again."),
     };
 
@@ -37,6 +37,26 @@ public class ClipAgentTests
 
         for (var i = 1; i < clips.Count; i++)
             Assert.True(clips[i].Start - clips[i - 1].Start >= 20 - 0.5);
+    }
+
+    [Fact]
+    public void Selector_merges_two_speakers_into_one_dialogue_clip_instead_of_failing()
+    {
+        // İki kişi üst üste konuşuyor: altyazı satırları zamanda çakışıyor
+        var lines = new List<CaptionLine>
+        {
+            Line(100, 3, "Come on, be careful."),
+            Line(101.5, 3, "I am fine, thank you."),
+        };
+        var track = new CaptionTrack("en", false, lines);
+
+        var clip = Assert.Single(ClipSelector.Select(lines, videoDurationSec: 180));
+        Assert.Contains("careful.", clip.Text);
+        Assert.Contains("thank you.", clip.Text);
+        Assert.Equal(9, clip.Words.Count);
+
+        var result = ClipQualityChecker.Check(clip, GoodDetails(), track);
+        Assert.True(result.Passed, string.Join(" | ", result.Reasons));
     }
 
     [Fact]
