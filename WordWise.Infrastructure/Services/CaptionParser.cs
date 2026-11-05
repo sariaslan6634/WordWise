@@ -13,11 +13,10 @@ namespace WordWise.Infrastructure.Services
         public static List<CaptionTrackInfo> ExtractEnglishTracks(string html)
         {
             var result = new List<CaptionTrackInfo>();
-            const string marker = "\"captionTracks\":";
-            var markerIndex = html.IndexOf(marker, StringComparison.Ordinal);
-            if (markerIndex < 0) return result;
+            var markerMatch = System.Text.RegularExpressions.Regex.Match(html, "\"captionTracks\"\\s*:");
+            if (!markerMatch.Success) return result;
 
-            var arrayText = ExtractJsonArray(html, markerIndex + marker.Length);
+            var arrayText = ExtractJsonArray(html, markerMatch.Index + markerMatch.Length);
             if (arrayText is null) return result;
 
             using var doc = JsonDocument.Parse(arrayText);
