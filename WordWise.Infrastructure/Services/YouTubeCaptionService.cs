@@ -1,6 +1,10 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using System.Diagnostics;
 using System.Text;
+using System.Text.RegularExpressions;
 using WordWise.Application.Common.Interfaces;
+using WordWise.Application.Common.Settings;
 using WordWise.Application.Features.Clips.Models;
 
 namespace WordWise.Infrastructure.Services
@@ -9,7 +13,10 @@ namespace WordWise.Infrastructure.Services
     /// YouTube'dan İngilizce altyazıyı iki yoldan dener: (1) izleme sayfası, (2) InnerTube player API (Android istemcisi).
     /// Resmî bir API değildir; YouTube değiştirirse bozulabilir. Her adım ayrıntılı günlüğe yazılır.
     /// </summary>
-    public class YouTubeCaptionService(HttpClient _httpClient, ILogger<YouTubeCaptionService> _logger) : ICaptionService
+    public class YouTubeCaptionService(
+        HttpClient _httpClient,
+        IOptions<YoutubeSettings> _options,
+        ILogger<YouTubeCaptionService> _logger) : ICaptionService
     {
         private const string WebUserAgent =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
@@ -65,6 +72,77 @@ namespace WordWise.Infrastructure.Services
                 }
             }
 
+            return await TryYtDlpAsync(youtubeId, cancellationToken);
+        }
+
+        /// <summary>Son çare: bilgisayarda kurulu yt-dlp ile altyazıyı indirir (YouTube değişikliklerine en hızlı uyum sağlayan araç).</summary>
+        private async Task<CaptionTrack?> TryYtDlpAsync(string youtubeId, CancellationToken ct)
+        {
+            if (!Regex.IsMatch(youtubeId, "^[A-Za-z0-9_-]{11}$")) return null;
+
+            var exe = string.IsNullOrWhiteSpace(_options.Value.YtDlpPath) ? "yt-dlp" : _options.Value.YtDlpPath;
+            foreach (var auto in new[] { false, true })
+            {
+                var dir = Path.Combine(Path.GetTempPath(), "wordwise-captions", Guid.NewGuid().ToString("N"));
+                Directory.CreateDirectory(dir);
+                try
+                {
+                    var psi = new ProcessStartInfo(exe)
+                    {
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                    };
+                    foreach (var arg in new[]
+                    {
+                        "--skip-download", auto ? "--write-auto-subs" : "--write-subs",
+                        "--sub-langs", "en.*", "--sub-format", "json3",
+                        "--no-playlist", "--no-warnings",
+                        "-o", Path.Combine(dir, "%(id)s"),
+                        $"https://www.youtube.com/watch?v={youtubeId}"
+                    })
+                        psi.ArgumentList.Add(arg);
+
+                    using var process = Process.Start(psi);
+                    if (process is null) continue;
+
+                    using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    timeout.CancelAfter(TimeSpan.FromSeconds(90));
+                    var stderrTask = process.StandardError.ReadToEndAsync(timeout.Token);
+                    var stdoutTask = process.StandardOutput.ReadToEndAsync(timeout.Token);
+                    await process.WaitForExitAsync(timeout.Token);
+                    var stderr = await stderrTask;
+                    await stdoutTask;
+
+                    var file = Directory.GetFiles(dir, "*.json3").OrderBy(f => f).FirstOrDefault();
+                    if (file is null)
+                    {
+                        _logger.LogWarning("[yt-dlp] {VideoId}: ({Mode}) altyazı dosyası oluşmadı. Çıkış kodu: {Code}. Hata: {Err}",
+                            youtubeId, auto ? "otomatik" : "elle girilmiş", process.ExitCode, stderr.Length > 400 ? stderr[..400] : stderr);
+                        continue;
+                    }
+
+                    var lines = CaptionParser.ParseJson3(await File.ReadAllTextAsync(file, ct));
+                    if (lines.Count == 0) continue;
+
+                    _logger.LogInformation("[yt-dlp] {VideoId}: {Count} altyazı satırı alındı (otomatik: {Auto}).", youtubeId, lines.Count, auto);
+                    return new CaptionTrack("en", auto, lines);
+                }
+                catch (System.ComponentModel.Win32Exception)
+                {
+                    _logger.LogWarning("[yt-dlp] '{Exe}' bulunamadı. yt-dlp kurulu değil veya PATH'te değil (appsettings: YouTubeSettings:YtDlpPath).", exe);
+                    return null;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "[yt-dlp] {VideoId}: çalıştırılırken hata oluştu.", youtubeId);
+                }
+                finally
+                {
+                    try { Directory.Delete(dir, true); } catch (IOException) { }
+                }
+            }
             return null;
         }
 

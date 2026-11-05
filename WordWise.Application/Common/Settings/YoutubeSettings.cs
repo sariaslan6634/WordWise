@@ -12,5 +12,8 @@ namespace WordWise.Application.Common.Settings
 
         public string ApiKey { get; set; } = string.Empty;
         public int MaxCandidateCount { get; set; } = 10;
+
+        /// <summary>Altyazı yedeği için yt-dlp çalıştırılabilir dosyası (PATH'te ise "yt-dlp" yeterli).</summary>
+        public string YtDlpPath { get; set; } = "yt-dlp";
     }
 }
