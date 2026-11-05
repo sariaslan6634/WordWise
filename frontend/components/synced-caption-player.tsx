@@ -42,6 +42,8 @@ export function estimateWordTimes(text: string, startSec: number, endSec: number
 
 const FADED = "#b9bfb4";
 const SPOKEN = "#e3b800";
+/** Vurgulamayı kelime zamanından bu kadar saniye ERKEN başlat (YouTube gecikmesi + altyazının geç görünmesi için). */
+export const DEFAULT_LEAD_SEC = 0.3;
 
 export default function SyncedCaptionPlayer({
   videoId,
@@ -49,22 +51,29 @@ export default function SyncedCaptionPlayer({
   endSec,
   text,
   words,
+  leadSec,
+  adjustable = false,
 }: {
   videoId: string;
   startSec: number;
   endSec: number;
   text: string;
   words?: CaptionWord[];
+  /** Vurgu ne kadar erken başlasın (sn). Varsayılan 0.3. */
+  leadSec?: number;
+  /** true ise altta senkron ayarı kaydırıcısı gösterilir (admin önizlemesi için). */
+  adjustable?: boolean;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YtPlayer | null>(null);
   const [time, setTime] = useState(startSec);
   const [error, setError] = useState("");
+  const [lead, setLead] = useState(leadSec ?? DEFAULT_LEAD_SEC);
   const captionWords = useMemo(() => words ?? estimateWordTimes(text, startSec, endSec), [words, text, startSec, endSec]);
 
   useEffect(() => {
     let disposed = false;
-    let timer: ReturnType<typeof setInterval> | null = null;
+    let frame = 0;
     const w = window as unknown as YtWindow;
     const previousReady = w.onYouTubeIframeAPIReady;
 
@@ -85,11 +94,13 @@ export default function SyncedCaptionPlayer({
         },
         events: {
           onReady: () => {
-            timer = setInterval(() => {
+            const tick = () => {
               try {
                 if (playerRef.current) setTime(playerRef.current.getCurrentTime() || 0);
               } catch { /* oynatıcı yüklenirken geçici hata */ }
-            }, 80);
+              frame = requestAnimationFrame(tick);
+            };
+            frame = requestAnimationFrame(tick);
           },
           onStateChange: () => undefined,
         },
@@ -114,7 +125,7 @@ export default function SyncedCaptionPlayer({
 
     return () => {
       disposed = true;
-      if (timer) clearInterval(timer);
+      cancelAnimationFrame(frame);
       playerRef.current?.destroy();
       playerRef.current = null;
     };
@@ -141,13 +152,13 @@ export default function SyncedCaptionPlayer({
         }}
       >
         {captionWords.map((word, index) => {
-          const spoken = time >= word.start;
+          const spoken = time >= word.start - lead;
           return (
             <span
               key={`${word.text}-${index}`}
               style={{
                 color: spoken ? SPOKEN : FADED,
-                transition: "color .15s ease",
+                transition: "color .08s linear",
                 marginRight: "0.3em",
                 display: "inline-block",
               }}
@@ -172,6 +183,12 @@ export default function SyncedCaptionPlayer({
       >
         Cümleyi tekrar oynat
       </button>
+      {adjustable && (
+        <label style={{ justifySelf: "center", display: "flex", alignItems: "center", gap: 10, fontSize: 12, color: "#68756a" }}>
+          Senkron ayarı: vurgu {lead.toFixed(2)} sn erken
+          <input type="range" min={-0.5} max={1.5} step={0.05} value={lead} onChange={(event) => setLead(Number(event.target.value))} />
+        </label>
+      )}
     </div>
   );
 }
