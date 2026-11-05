@@ -20,4 +20,20 @@ namespace WordWise.Application.Features.Clips.Queries.GetClips
             return clips.Select(VideoClipMapper.ToDto).ToList();
         }
     }
+
+    public record GetClipsByYoutubeIdQuery(string YoutubeId) : IRequest<List<VideoClipDto>>;
+
+    public class GetClipsByYoutubeIdQueryHandler(IWordWiseDbContext _context)
+        : IRequestHandler<GetClipsByYoutubeIdQuery, List<VideoClipDto>>
+    {
+        public async Task<List<VideoClipDto>> Handle(GetClipsByYoutubeIdQuery request, CancellationToken cancellationToken)
+        {
+            var clips = await _context.VideoClips
+                .Where(x => x.YoutubeId == request.YoutubeId)
+                .OrderBy(x => x.StartSec)
+                .ToListAsync(cancellationToken);
+
+            return clips.Select(VideoClipMapper.ToDto).ToList();
+        }
+    }
 }

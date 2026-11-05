@@ -19,9 +19,14 @@ namespace WordWise.Infrastructure.Persistence.Configuyrations
             builder.Property(x => x.QcReasons).HasColumnType("nvarchar(max)").IsRequired(false);
             builder.Property(x => x.QcWarnings).HasColumnType("nvarchar(max)").IsRequired(false);
 
+            builder.Property(x => x.SourceTitle).HasMaxLength(500).IsRequired(false);
+
+            builder.HasIndex(x => x.YoutubeId);
+
             builder.HasOne(x => x.VideoCandidate)
                 .WithMany()
                 .HasForeignKey(x => x.VideoCandidateId)
+                .IsRequired(false)
                 .OnDelete(DeleteBehavior.Cascade);
 
             builder.HasIndex(x => x.VideoCandidateId);

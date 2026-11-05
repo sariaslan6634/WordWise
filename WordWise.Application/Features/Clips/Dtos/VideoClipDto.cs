@@ -8,7 +8,8 @@ namespace WordWise.Application.Features.Clips.Dtos
     public class VideoClipDto
     {
         public Guid Id { get; set; }
-        public Guid VideoCandidateId { get; set; }
+        public Guid? VideoCandidateId { get; set; }
+        public string? SourceTitle { get; set; }
         public string YoutubeId { get; set; } = string.Empty;
         public double StartSec { get; set; }
         public double EndSec { get; set; }
@@ -22,6 +23,12 @@ namespace WordWise.Application.Features.Clips.Dtos
         public List<string> QcWarnings { get; set; } = new();
     }
 
+    public class GenerateClipsFromVideoDto
+    {
+        /// <summary>YouTube bağlantısı (watch?v=, youtu.be, shorts) veya 11 karakterlik video kimliği.</summary>
+        public string Url { get; set; } = string.Empty;
+    }
+
     public static class VideoClipMapper
     {
         public static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
@@ -30,6 +37,7 @@ namespace WordWise.Application.Features.Clips.Dtos
         {
             Id = clip.Id,
             VideoCandidateId = clip.VideoCandidateId,
+            SourceTitle = clip.SourceTitle,
             YoutubeId = clip.YoutubeId,
             StartSec = clip.StartSec,
             EndSec = clip.EndSec,

@@ -28,6 +28,7 @@ namespace WordWise.Application
 
             services.AddAutoMapper(cfg => cfg.AddMaps(typeof(AppServiceRegistration).Assembly));
             services.AddValidatorsFromAssembly(typeof(AppServiceRegistration).Assembly);
+            services.AddScoped<WordWise.Application.Features.Clips.Services.ClipGenerator>();
 
 
 

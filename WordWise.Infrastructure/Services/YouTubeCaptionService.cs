@@ -21,7 +21,10 @@ namespace WordWise.Infrastructure.Services
                 var tracks = CaptionParser.ExtractEnglishTracks(html);
                 if (tracks.Count == 0)
                 {
-                    _logger.LogWarning("{VideoId} için İngilizce altyazı parçası bulunamadı.", youtubeId);
+                    _logger.LogWarning(
+                        "{VideoId} için İngilizce altyazı parçası bulunamadı. Sayfa uzunluğu: {Length}, captionTracks var mı: {HasTracks}, onay/consent sayfası mı: {IsConsent}, giriş/bot doğrulaması mı: {IsBotCheck}",
+                        youtubeId, html.Length, html.Contains("captionTracks"),
+                        html.Contains("consent.youtube.com"), html.Contains("confirm you") || html.Contains("not a bot"));
                     return null;
                 }
 

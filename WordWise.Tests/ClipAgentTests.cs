@@ -163,3 +163,26 @@ public class ClipAgentTests
         Assert.Contains("&lang=en", tracks[0].BaseUrl);
     }
 }
+
+public class YoutubeIdTests
+{
+    [Theory]
+    [InlineData("https://www.youtube.com/watch?v=rxUm-2x-2dM", "rxUm-2x-2dM")]
+    [InlineData("https://www.youtube.com/watch?list=PL123&v=rxUm-2x-2dM&t=30s", "rxUm-2x-2dM")]
+    [InlineData("https://youtu.be/rxUm-2x-2dM?si=abc", "rxUm-2x-2dM")]
+    [InlineData("https://www.youtube.com/shorts/rxUm-2x-2dM", "rxUm-2x-2dM")]
+    [InlineData("rxUm-2x-2dM", "rxUm-2x-2dM")]
+    public void Extracts_video_id_from_urls_and_plain_ids(string input, string expected)
+    {
+        Assert.Equal(expected, WordWise.Application.Features.Clips.Services.ClipGenerator.ExtractYoutubeId(input));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("not a link")]
+    [InlineData("https://example.com/page")]
+    public void Returns_null_for_invalid_input(string input)
+    {
+        Assert.Null(WordWise.Application.Features.Clips.Services.ClipGenerator.ExtractYoutubeId(input));
+    }
+}

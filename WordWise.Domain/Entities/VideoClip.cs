@@ -8,8 +8,11 @@ namespace WordWise.Domain.Entities
     /// </summary>
     public class VideoClip : BaseEntity
     {
-        public Guid VideoCandidateId { get; set; }
-        public VideoCandidate VideoCandidate { get; set; } = null!;
+        /// <summary>Kelimeye bağlı aday videodan üretildiyse dolu; doğrudan YouTube bağlantısından üretildiyse boş.</summary>
+        public Guid? VideoCandidateId { get; set; }
+        public VideoCandidate? VideoCandidate { get; set; }
+
+        public string? SourceTitle { get; set; }
 
         public string YoutubeId { get; set; } = string.Empty;
 

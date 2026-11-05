@@ -68,6 +68,26 @@ namespace WordWise.WebAPI.Controllers.Admin
             return Ok(ApiResponse<List<VideoClipDto>>.Ok(clips, $"{clips.Count} clips generated, {passed} passed quality control."));
         }
 
+        /// <summary>Kelimeden bağımsız: bir YouTube bağlantısından/kimliğinden klip üretir.</summary>
+        [HttpPost("clips/from-video")]
+        [ProducesResponseType(typeof(ApiResponse<List<VideoClipDto>>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GenerateClipsFromVideo(
+            [FromBody] GenerateClipsFromVideoDto dto,
+            CancellationToken cancellationToken)
+        {
+            var clips = await _mediator.Send(new GenerateClipsFromVideoCommand(dto.Url), cancellationToken);
+            var passed = clips.Count(c => c.QcStatus == "Passed");
+            return Ok(ApiResponse<List<VideoClipDto>>.Ok(clips, $"{clips.Count} clips generated, {passed} passed quality control."));
+        }
+
+        [HttpGet("clips/by-video/{youtubeId}")]
+        [ProducesResponseType(typeof(ApiResponse<List<VideoClipDto>>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetClipsByVideo(string youtubeId, CancellationToken cancellationToken)
+        {
+            var clips = await _mediator.Send(new GetClipsByYoutubeIdQuery(youtubeId), cancellationToken);
+            return Ok(ApiResponse<List<VideoClipDto>>.Ok(clips));
+        }
+
         [HttpGet("candidates/{candidateId:guid}/clips")]
         [ProducesResponseType(typeof(ApiResponse<List<VideoClipDto>>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetClips(
