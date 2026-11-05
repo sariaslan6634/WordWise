@@ -46,3 +46,16 @@ namespace WordWise.Application.Features.Clips.Models
         public double PaddingAfterSec { get; set; } = 0.3;
     }
 }
+
+namespace WordWise.Application.Features.Clips.Models
+{
+    public record DiscoveredVideoInfo(string YoutubeId, string Title);
+
+    public record DiscoveryRunResult(
+        string Query,
+        int VideosFound,
+        int VideosProcessed,
+        int ClipsCreated,
+        int ClipsPublished,
+        IReadOnlyList<string> Failures);
+}

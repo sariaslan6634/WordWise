@@ -71,6 +71,8 @@ namespace WordWise.Infrastructure
             services.AddHttpClient<IDatamuseService, DatamuseService>();
             services.AddHttpClient<ICaptionService, YouTubeCaptionService>();
             services.AddHttpClient<IVideoDetailsService, YouTubeVideoDetailsService>();
+            services.AddHttpClient<IVideoDiscoveryService, YouTubeDiscoveryService>();
+            services.AddHostedService<ClipDiscoveryWorker>();
 
             return services;
         }

@@ -6,6 +6,8 @@ using System.Security.Claims;
 using WordWise.Application.Common.Models;
 using WordWise.Application.Features.Clips.Commands.GenerateClips;
 using WordWise.Application.Features.Clips.Commands.ReviewClip;
+using WordWise.Application.Features.Clips.Commands.RunDiscovery;
+using WordWise.Application.Features.Clips.Models;
 using WordWise.Application.Features.Clips.Dtos;
 using WordWise.Application.Features.Clips.Queries.GetClips;
 using WordWise.Application.Features.Videos.Commands.ApproveVideoCandidate;
@@ -79,6 +81,16 @@ namespace WordWise.WebAPI.Controllers.Admin
             var clips = await _mediator.Send(new GenerateClipsFromVideoCommand(dto.Url), cancellationToken);
             var passed = clips.Count(c => c.QcStatus == "Passed");
             return Ok(ApiResponse<List<VideoClipDto>>.Ok(clips, $"{clips.Count} clips generated, {passed} passed quality control."));
+        }
+
+        /// <summary>Otomatik keşif ajanını hemen bir kez çalıştırır (zamanlayıcıyı beklemeden).</summary>
+        [HttpPost("auto-discovery/run")]
+        [ProducesResponseType(typeof(ApiResponse<DiscoveryRunResult>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> RunAutoDiscovery(CancellationToken cancellationToken)
+        {
+            var result = await _mediator.Send(new RunDiscoveryCommand(), cancellationToken);
+            return Ok(ApiResponse<DiscoveryRunResult>.Ok(result,
+                $"{result.VideosProcessed} videos processed, {result.ClipsCreated} clips created, {result.ClipsPublished} published."));
         }
 
         [HttpGet("clips")]

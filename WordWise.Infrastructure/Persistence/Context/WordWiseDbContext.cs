@@ -21,6 +21,7 @@ namespace WordWise.Infrastructure.Persistence.Context
         public DbSet<VideoCandidate> VideoCandidates { get; set; }
         public DbSet<UserLoginEvent> UserLoginEvents { get; set; }
         public DbSet<VideoClip> VideoClips { get; set; }
+        public DbSet<DiscoveredVideo> DiscoveredVideos { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
