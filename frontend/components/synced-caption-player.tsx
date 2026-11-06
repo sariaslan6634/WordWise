@@ -87,6 +87,19 @@ export default function SyncedCaptionPlayer({
   const loopsRef = useRef(loops);
   const onFinishedRef = useRef(onFinished);
   useEffect(() => { loopsRef.current = loops; onFinishedRef.current = onFinished; });
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [isFs, setIsFs] = useState(false);
+  useEffect(() => {
+    const onChange = () => setIsFs(document.fullscreenElement === stageRef.current);
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+  function toggleFullscreen() {
+    try {
+      if (document.fullscreenElement) void document.exitFullscreen();
+      else void stageRef.current?.requestFullscreen();
+    } catch { /* tam ekran desteklenmiyor olabilir */ }
+  }
   const pausedByUsRef = useRef(false);
   useEffect(() => {
     const player = playerRef.current;
@@ -138,6 +151,7 @@ export default function SyncedCaptionPlayer({
           enablejsapi: 1,
           playsinline: 1,
           autoplay: autoPlay ? 1 : 0,
+          fs: variant === "cinema" ? 0 : 1, // sinema modunda altyazı videonun üstünde olduğu için tam ekranı biz yönetiriz
           rel: 0,
           start: Math.floor(startSec),
           end: Math.ceil(endSec),
@@ -186,7 +200,7 @@ export default function SyncedCaptionPlayer({
       playerRef.current = null;
       mount?.remove();
     };
-  }, [videoId, startSec, endSec, autoPlay]);
+  }, [videoId, startSec, endSec, autoPlay, variant]);
 
   function replay() {
     playsRef.current = 0;
@@ -196,24 +210,40 @@ export default function SyncedCaptionPlayer({
     playerRef.current?.loadVideoById({ videoId, startSeconds: startSec, endSeconds: endSec });
   }
 
+  const cinema = variant === "cinema";
+  const caption = (
+    <p className="scp-caption" aria-live="off">
+      <span className="scp-caption-inner">
+        {captionWords.map((word, index) => (
+          <span key={`${word.text}-${index}`} className={`scp-word${time >= word.start - lead ? " on" : ""}`}>
+            {word.text}
+          </span>
+        ))}
+      </span>
+    </p>
+  );
+
   return (
-    <div className={`scp${variant === "cinema" ? " scp-cinema" : ""}`}>
-      <div className="scp-video">
+    <div className={`scp${cinema ? " scp-cinema" : ""}`}>
+      <div className="scp-video" ref={stageRef}>
         <div ref={hostRef} className="scp-host" />
+        {cinema && caption}
+        {cinema && (
+          <div className="scp-tools">
+            <button type="button" onClick={replay} aria-label="Cümleyi tekrar oynat" title="Cümleyi tekrar oynat">
+              ↻{loops > 1 ? <span>{Math.min(play, loops)}/{loops}</span> : null}
+            </button>
+            <button type="button" onClick={toggleFullscreen} aria-label={isFs ? "Tam ekrandan çık" : "Tam ekran"} title={isFs ? "Tam ekrandan çık" : "Tam ekran"}>{isFs ? "🗗" : "⛶"}</button>
+          </div>
+        )}
       </div>
       {error && <p role="alert" className="scp-error">{error}</p>}
-      <p className="scp-caption" aria-live="off">
-        <span className="scp-caption-inner">
-          {captionWords.map((word, index) => (
-            <span key={`${word.text}-${index}`} className={`scp-word${time >= word.start - lead ? " on" : ""}`}>
-              {word.text}
-            </span>
-          ))}
-        </span>
-      </p>
-      <button type="button" className="scp-replay" onClick={replay}>
-        Cümleyi tekrar oynat{loops > 1 ? ` · tekrar ${Math.min(play, loops)}/${loops}` : ""}
-      </button>
+      {!cinema && caption}
+      {!cinema && (
+        <button type="button" className="scp-replay" onClick={replay}>
+          Cümleyi tekrar oynat{loops > 1 ? ` · tekrar ${Math.min(play, loops)}/${loops}` : ""}
+        </button>
+      )}
     </div>
   );
 }

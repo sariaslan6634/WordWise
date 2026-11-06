@@ -168,20 +168,6 @@ export default function ClipPractice({ initialClips }: { initialClips: LearnerCl
       <button type="button" className="cinema-button primary" onClick={loadMore} disabled={loadingMore}>{loadingMore ? "Yükleniyor…" : "Yeni klipler getir"}</button>
       {error && <p className="cinema-error" role="alert">{error}</p>}
     </div> : <>
-      <SyncedCaptionPlayer
-        key={clip.id}
-        variant="cinema"
-        videoId={clip.youtubeId}
-        startSec={clip.startSec}
-        endSec={clip.endSec}
-        text={clip.text}
-        words={clip.words.length > 0 ? clip.words : undefined}
-        loops={loop ? LOOP_COUNT : 1}
-        autoPlay={hasInteracted || index > 0}
-        paused={reportOpen}
-        onFinished={handleFinished}
-      />
-
       <div className="cinema-bar">
         <label className="cinema-switch">
           <input type="checkbox" role="switch" checked={autoNext} onChange={(event) => toggleAutoNext(event.target.checked)}/>
@@ -195,6 +181,20 @@ export default function ClipPractice({ initialClips }: { initialClips: LearnerCl
           <button type="button" className="cinema-button report" onClick={openReport}>⚑ Videoyu bildir</button>
         </div>
       </div>
+
+      <SyncedCaptionPlayer
+        key={clip.id}
+        variant="cinema"
+        videoId={clip.youtubeId}
+        startSec={clip.startSec}
+        endSec={clip.endSec}
+        text={clip.text}
+        words={clip.words.length > 0 ? clip.words : undefined}
+        loops={loop ? LOOP_COUNT : 1}
+        autoPlay={hasInteracted || index > 0}
+        paused={reportOpen}
+        onFinished={handleFinished}
+      />
 
       <div className="cinema-nav">
         <button type="button" className="cinema-button" onClick={() => { setHasInteracted(true); goTo(Math.max(0, index - 1)); }} disabled={index === 0}>← Önceki</button>
