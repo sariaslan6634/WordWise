@@ -28,6 +28,26 @@ namespace WordWise.Application.Features.Clips.Commands.ReviewClip
         }
     }
 
+    /// <summary>Videonun tüm kliplerinde "videoda yazılı altyazı var" işaretini değiştirir.</summary>
+    public record SetBurnedInCaptionsCommand(string YoutubeId, bool Value) : IRequest<int>;
+
+    public class SetBurnedInCaptionsCommandHandler(IWordWiseDbContext _context)
+        : IRequestHandler<SetBurnedInCaptionsCommand, int>
+    {
+        public async Task<int> Handle(SetBurnedInCaptionsCommand request, CancellationToken cancellationToken)
+        {
+            var clips = await _context.VideoClips
+                .Where(x => x.YoutubeId == request.YoutubeId)
+                .ToListAsync(cancellationToken);
+            if (clips.Count == 0)
+                throw new NotFoundException(nameof(VideoClip), request.YoutubeId);
+
+            foreach (var clip in clips) clip.HasBurnedInCaptions = request.Value;
+            await _context.SaveChangesAsync(cancellationToken);
+            return clips.Count;
+        }
+    }
+
     public record RejectClipCommand(Guid ClipId) : IRequest<VideoClipDto>;
 
     public class RejectClipCommandHandler(IWordWiseDbContext _context)

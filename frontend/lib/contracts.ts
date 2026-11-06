@@ -85,6 +85,7 @@ export interface VideoClip {
   isAutoCaption: boolean;
   isPublished: boolean;
   isRejected: boolean;
+  hasBurnedInCaptions: boolean;
   createdAt: string;
   qcStatus: "Passed" | "Failed" | "Pending";
   qcReasons: string[];
@@ -98,6 +99,7 @@ export interface LearnerClip {
   endSec: number;
   text: string;
   words: { text: string; start: number; end: number }[];
+  hasBurnedInCaptions: boolean;
 }
 
 export type ClipReportReason = "Quality" | "CaptionSync" | "Inappropriate" | "Other";

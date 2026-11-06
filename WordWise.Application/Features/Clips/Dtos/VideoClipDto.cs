@@ -18,6 +18,7 @@ namespace WordWise.Application.Features.Clips.Dtos
         public bool IsAutoCaption { get; set; }
         public bool IsPublished { get; set; }
         public bool IsRejected { get; set; }
+        public bool HasBurnedInCaptions { get; set; }
         public DateTime CreatedAt { get; set; }
 
         /// <summary>"Passed" (uygun) veya "Failed" (uygun değil).</summary>
@@ -49,6 +50,7 @@ namespace WordWise.Application.Features.Clips.Dtos
             IsAutoCaption = clip.IsAutoCaption,
             IsPublished = clip.IsPublished,
             IsRejected = clip.IsRejected,
+            HasBurnedInCaptions = clip.HasBurnedInCaptions,
             CreatedAt = clip.CreatedAt,
             QcStatus = clip.QcStatus == ClipQcStatus.Passed ? "Passed" : clip.QcStatus == ClipQcStatus.Failed ? "Failed" : "Pending",
             QcReasons = SplitLines(clip.QcReasons),

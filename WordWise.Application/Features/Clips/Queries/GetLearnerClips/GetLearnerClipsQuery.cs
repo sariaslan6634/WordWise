@@ -33,6 +33,7 @@ namespace WordWise.Application.Features.Clips.Queries.GetLearnerClips
                 StartSec = c.StartSec,
                 EndSec = c.EndSec,
                 Text = c.Text,
+                HasBurnedInCaptions = c.HasBurnedInCaptions,
                 Words = JsonSerializer.Deserialize<List<CaptionWord>>(c.WordTimingsJson, VideoClipMapper.JsonOptions) ?? new(),
             }).ToList();
         }

@@ -117,6 +117,18 @@ namespace WordWise.WebAPI.Controllers.Admin
             return Ok(ApiResponse<VideoClipDto>.Ok(clip, "Clip rejected."));
         }
 
+        /// <summary>Videonun kendi altyazısı varsa işaretler; öğrenciye bizim altyazımız gösterilmez.</summary>
+        [HttpPost("clips/by-video/{youtubeId}/burned-in")]
+        [ProducesResponseType(typeof(ApiResponse<int>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> SetBurnedInCaptions(
+            string youtubeId,
+            [FromBody] SetBurnedInCaptionsRequest request,
+            CancellationToken cancellationToken)
+        {
+            var count = await _mediator.Send(new SetBurnedInCaptionsCommand(youtubeId, request.Value), cancellationToken);
+            return Ok(ApiResponse<int>.Ok(count, $"{count} clips updated."));
+        }
+
         [HttpGet("clips/by-video/{youtubeId}")]
         [ProducesResponseType(typeof(ApiResponse<List<VideoClipDto>>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetClipsByVideo(string youtubeId, CancellationToken cancellationToken)

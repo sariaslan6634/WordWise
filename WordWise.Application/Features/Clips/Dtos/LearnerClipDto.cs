@@ -11,6 +11,14 @@ namespace WordWise.Application.Features.Clips.Dtos
         public double EndSec { get; set; }
         public string Text { get; set; } = string.Empty;
         public List<CaptionWord> Words { get; set; } = new();
+
+        /// <summary>true ise videonun kendi altyazısı var; arayüz bizim altyazımızı göstermemeli.</summary>
+        public bool HasBurnedInCaptions { get; set; }
+    }
+
+    public class SetBurnedInCaptionsRequest
+    {
+        public bool Value { get; set; }
     }
 
     public class ReportClipRequest

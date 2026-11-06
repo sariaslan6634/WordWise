@@ -193,6 +193,7 @@ export default function ClipPractice({ initialClips }: { initialClips: LearnerCl
         loops={loop ? LOOP_COUNT : 1}
         autoPlay={hasInteracted || index > 0}
         paused={reportOpen}
+        showCaption={!clip.hasBurnedInCaptions}
         onFinished={handleFinished}
       />
 

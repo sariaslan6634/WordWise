@@ -83,3 +83,32 @@ public class LearnerClipTests
             handler.Handle(new ReportClipCommand(Guid.NewGuid(), hidden.Id, "Quality", null), default));
     }
 }
+
+public class BurnedInCaptionTests
+{
+    [Fact]
+    public async Task Flag_is_set_on_every_clip_of_the_video_and_reaches_learners()
+    {
+        await using var context = new WordWiseDbContext(new DbContextOptionsBuilder<WordWiseDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
+        VideoClip Make(string video) => new()
+        {
+            YoutubeId = video, Text = "Daddy is the best cook.", WordTimingsJson = "[]",
+            QcStatus = ClipQcStatus.Passed, IsPublished = true,
+        };
+        context.VideoClips.AddRange(Make("aaaaaaaaaaa"), Make("aaaaaaaaaaa"), Make("bbbbbbbbbbb"));
+        await context.SaveChangesAsync();
+
+        var updated = await new WordWise.Application.Features.Clips.Commands.ReviewClip.SetBurnedInCaptionsCommandHandler(context)
+            .Handle(new WordWise.Application.Features.Clips.Commands.ReviewClip.SetBurnedInCaptionsCommand("aaaaaaaaaaa", true), default);
+
+        Assert.Equal(2, updated);
+        var learner = await new GetLearnerClipsQueryHandler(context).Handle(new GetLearnerClipsQuery(Guid.NewGuid(), 20), default);
+        Assert.Equal(2, learner.Count(c => c.HasBurnedInCaptions && c.YoutubeId == "aaaaaaaaaaa"));
+        Assert.Single(learner, c => !c.HasBurnedInCaptions);
+
+        await Assert.ThrowsAsync<NotFoundException>(() =>
+            new WordWise.Application.Features.Clips.Commands.ReviewClip.SetBurnedInCaptionsCommandHandler(context)
+                .Handle(new WordWise.Application.Features.Clips.Commands.ReviewClip.SetBurnedInCaptionsCommand("ccccccccccc", true), default));
+    }
+}

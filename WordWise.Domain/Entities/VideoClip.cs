@@ -30,6 +30,9 @@ namespace WordWise.Domain.Entities
         /// <summary>Admin onayladı; öğrencilere gösterilir. Sadece kalite kontrolünden geçen klipler yayınlanabilir.</summary>
         public bool IsPublished { get; set; } = false;
 
+        /// <summary>Videonun kendisinde yazılı altyazı var; bizim altyazımız gösterilmez.</summary>
+        public bool HasBurnedInCaptions { get; set; } = false;
+
         public bool IsRejected { get; set; } = false;
 
         public ClipQcStatus QcStatus { get; set; } = ClipQcStatus.Pending;

@@ -23,6 +23,7 @@ namespace WordWise.Infrastructure.Persistence.Configuyrations
 
             builder.Property(x => x.IsPublished).IsRequired().HasDefaultValue(false);
             builder.Property(x => x.IsRejected).IsRequired().HasDefaultValue(false);
+            builder.Property(x => x.HasBurnedInCaptions).IsRequired().HasDefaultValue(false);
 
             builder.HasIndex(x => x.YoutubeId);
 

@@ -10,6 +10,7 @@ type YtPlayer = {
   pauseVideo(): void;
   playVideo(): void;
   loadVideoById(options: { videoId: string; startSeconds: number; endSeconds: number }): void;
+  cueVideoById(options: { videoId: string; startSeconds: number; endSeconds: number }): void;
 };
 type YtApi = {
   PlayerState: { PLAYING: number };
@@ -57,6 +58,7 @@ export default function SyncedCaptionPlayer({
   onFinished,
   variant = "default",
   paused = false,
+  showCaption = true,
 }: {
   videoId: string;
   startSec: number;
@@ -75,6 +77,8 @@ export default function SyncedCaptionPlayer({
   variant?: "default" | "cinema";
   /** true iken video durdurulur; false olunca (biz durdurduysak) kaldığı yerden devam eder. */
   paused?: boolean;
+  /** false ise bizim altyazımız gösterilmez (videonun kendi altyazısı varsa). */
+  showCaption?: boolean;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YtPlayer | null>(null);
@@ -133,6 +137,8 @@ export default function SyncedCaptionPlayer({
         finishedRef.current = false;
         playerRef.current?.loadVideoById({ videoId, startSeconds: startSec, endSeconds: endSec });
       } else {
+        // Klip bitti: videoyu başa sarılmış, durmuş hâlde hazırla. Oynat'a basınca baştan oynar (kaldığı yerden değil).
+        try { playerRef.current?.cueVideoById({ videoId, startSeconds: startSec, endSeconds: endSec }); } catch { /* oynatıcı hazır değil */ }
         onFinishedRef.current?.();
       }
     };
@@ -172,7 +178,16 @@ export default function SyncedCaptionPlayer({
             };
             frame = requestAnimationFrame(tick);
           },
-          onStateChange: (event) => { if (event.data === 0) handleEnd(); },
+          onStateChange: (event) => {
+            if (event.data === 0) handleEnd();
+            // Klip bittikten sonra kullanıcı tekrar oynata bastı: sayaçları sıfırla, baştan oynasın.
+            if (event.data === 1 && finishedRef.current) {
+              playsRef.current = 0;
+              finishedRef.current = false;
+              armedRef.current = false;
+              setPlay(1);
+            }
+          },
         },
       });
     };
@@ -227,7 +242,7 @@ export default function SyncedCaptionPlayer({
     <div className={`scp${cinema ? " scp-cinema" : ""}`}>
       <div className="scp-video" ref={stageRef}>
         <div ref={hostRef} className="scp-host" />
-        {cinema && caption}
+        {cinema && showCaption && caption}
         {cinema && (
           <div className="scp-tools">
             <button type="button" onClick={replay} aria-label="Cümleyi tekrar oynat" title="Cümleyi tekrar oynat">
@@ -238,7 +253,7 @@ export default function SyncedCaptionPlayer({
         )}
       </div>
       {error && <p role="alert" className="scp-error">{error}</p>}
-      {!cinema && caption}
+      {!cinema && showCaption && caption}
       {!cinema && (
         <button type="button" className="scp-replay" onClick={replay}>
           Cümleyi tekrar oynat{loops > 1 ? ` · tekrar ${Math.min(play, loops)}/${loops}` : ""}

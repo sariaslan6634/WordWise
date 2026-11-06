@@ -53,6 +53,19 @@ export default function ClipManager({ initialClips }: { initialClips: VideoClip[
     finally { setGenerating(false); }
   }
 
+  async function toggleBurnedIn(clip: VideoClip, value: boolean) {
+    setActingId(clip.id); setError(""); setNotice("");
+    try {
+      await request<number>(`clips/by-video/${encodeURIComponent(clip.youtubeId)}/burned-in`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ value }),
+      });
+      setClips((current) => current.map((item) => (item.youtubeId === clip.youtubeId ? { ...item, hasBurnedInCaptions: value } : item)));
+    } catch (value) { setError(value instanceof Error ? value.message : "İşlem başarısız oldu."); }
+    finally { setActingId(null); }
+  }
+
   async function review(clip: VideoClip, action: "publish" | "reject") {
     setActingId(clip.id); setError(""); setNotice("");
     try {
@@ -100,12 +113,13 @@ export default function ClipManager({ initialClips }: { initialClips: VideoClip[
         <p className="clip-text">“{clip.text}”</p>
         {clip.qcReasons.length > 0 && <ul className="clip-reasons">{clip.qcReasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>}
         {clip.qcWarnings.length > 0 && <ul className="clip-warnings">{clip.qcWarnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>}
+        <label className="clip-burned"><input type="checkbox" checked={clip.hasBurnedInCaptions} disabled={actingId === clip.id} onChange={(event) => toggleBurnedIn(clip, event.target.checked)}/> Videoda yazılı altyazı var <small>(öğrenciye bizim altyazımız gösterilmez; bu videonun tüm klipleri için geçerli)</small></label>
         <div className="clip-actions">
           <button type="button" className="clip-button" onClick={() => setOpenId(open ? null : clip.id)}>{open ? "Önizlemeyi kapat" : "Önizle"}</button>
           {!clip.isPublished && <button type="button" className="clip-button primary" disabled={!passed || actingId === clip.id} title={passed ? undefined : "Kalite kontrolünden geçmeyen klip yayınlanamaz"} onClick={() => review(clip, "publish")}>Yayınla</button>}
           <button type="button" className="clip-button danger" disabled={actingId === clip.id} onClick={() => review(clip, "reject")}>{clip.isPublished ? "Yayından kaldır" : "Reddet"}</button>
         </div>
-        {open && <div className="clip-preview"><SyncedCaptionPlayer videoId={clip.youtubeId} startSec={clip.startSec} endSec={clip.endSec} text={clip.text} words={clip.words}/></div>}
+        {open && <div className="clip-preview"><SyncedCaptionPlayer videoId={clip.youtubeId} startSec={clip.startSec} endSec={clip.endSec} text={clip.text} words={clip.words} showCaption={!clip.hasBurnedInCaptions}/></div>}
       </article>;
     })}</div>
   </section>;
