@@ -40,7 +40,7 @@ namespace WordWise.Application.Features.Clips.Services
             if (details is null)
                 throw new BusinessException("Video bilgileri YouTube'dan alınamadı (video silinmiş/gizli olabilir veya API anahtarı hatalı).");
 
-            var picked = ClipSelector.Select(track.Lines, videoDurationSec: details.DurationSeconds);
+            var picked = ClipSelector.Select(track.Lines, videoDurationSec: details.DurationSeconds, asrWords: track.TimedWords);
 
             // Aynı videodan yayınlanmamış önceki üretimleri sil (yeniden üretimde kopya birikmesin).
             // Yayınlanmış klipler korunur; aynı cümle tekrar eklenmez.

@@ -30,7 +30,8 @@ namespace WordWise.Application.Features.Clips.Services
         public static List<ClipCandidate> Select(
             IReadOnlyList<CaptionLine> lines,
             ClipSelectorOptions? options = null,
-            double? videoDurationSec = null)
+            double? videoDurationSec = null,
+            IReadOnlyList<CaptionWord>? asrWords = null)
         {
             options ??= new ClipSelectorOptions();
             var ordered = lines.OrderBy(l => l.Start).ToList();
@@ -114,15 +115,26 @@ namespace WordWise.Application.Features.Clips.Services
 
                 // Altyazı ekranda konuşmadan uzun kalabilir; konuşma süresini kelime sayısından tahmin et.
                 var speakEnd = Math.Min(end, start + wordCount * 0.45 + 0.6);
-                var words = BuildWords(set.OrderBy(k => k).Select(k => ordered[k]).ToList(), text, start, speakEnd);
-                if (words.Count > 0) speakEnd = Math.Max(speakEnd, words[^1].End);
-                var rate = wordCount / Math.Max(0.1, speakEnd - start);
+                var (words, real) = BuildWords(set.OrderBy(k => k).Select(k => ordered[k]).ToList(), text, start, speakEnd);
+                if (!real && asrWords is { Count: > 0 })
+                {
+                    // Elle girilmiş altyazının kelimelerini otomatik altyazı kaydındaki gerçek zamanlarla eşleştir
+                    var aligned = WordAligner.Align(words, asrWords, start, speakEnd);
+                    if (aligned is not null) { words = aligned; real = true; }
+                }
+                var clipStart = start;
+                if (words.Count > 0)
+                {
+                    if (real) { speakEnd = words[^1].End; clipStart = Math.Max(0, words[0].Start); }
+                    else speakEnd = Math.Max(speakEnd, words[^1].End);
+                }
+                var rate = wordCount / Math.Max(0.1, speakEnd - clipStart);
                 var score = -Math.Abs(wordCount - 8)
                             - Math.Abs(rate - 2.8) * 2
                             + (EndsSentenceRegex.IsMatch(text) ? 2 : 0)
                             + (char.IsUpper(text[0]) ? 1 : 0);
 
-                var padStart = Math.Max(0, start - options.PaddingBeforeSec);
+                var padStart = Math.Max(0, clipStart - options.PaddingBeforeSec);
                 var padEnd = speakEnd + options.PaddingAfterSec;
                 if (videoDurationSec.HasValue) padEnd = Math.Min(padEnd, videoDurationSec.Value);
 
@@ -134,7 +146,7 @@ namespace WordWise.Application.Features.Clips.Services
                     && WordCount(cleaned[idx]) >= 2).Any();
                 if (spillsOver) continue;
 
-                scored.Add((new ClipCandidate(Math.Round(padStart, 2), Math.Round(padEnd, 2), text, words, Math.Round(duration, 2)), score));
+                scored.Add((new ClipCandidate(Math.Round(padStart, 2), Math.Round(padEnd, 2), text, words, Math.Round(duration, 2), real), score));
             }
 
             // 3) En iyileri seç, birbirine yakın başlayanları ele
@@ -150,7 +162,7 @@ namespace WordWise.Application.Features.Clips.Services
         }
 
         /// <summary>Kelime zamanı altyazıda varsa onu, yoksa harf sayısına orantılı tahmini kullanır.</summary>
-        private static List<CaptionWord> BuildWords(List<CaptionLine> group, string text, double start, double end)
+        private static (List<CaptionWord> Words, bool Real) BuildWords(List<CaptionLine> group, string text, double start, double end)
         {
             var tokens = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
@@ -158,10 +170,10 @@ namespace WordWise.Application.Features.Clips.Services
             {
                 var real = group.SelectMany(l => l.Words!).ToList();
                 if (real.Count == tokens.Length)
-                    return real.Select((w, i) => new CaptionWord(tokens[i], w.Start, Math.Max(w.End, w.Start))).ToList();
+                    return (real.Select((w, i) => new CaptionWord(tokens[i], w.Start, Math.Max(w.End, w.Start))).ToList(), true);
             }
 
-            return EstimateWordTimes(tokens, start, end);
+            return (EstimateWordTimes(tokens, start, end), false);
         }
 
         public static List<CaptionWord> EstimateWordTimes(IReadOnlyList<string> tokens, double start, double end)

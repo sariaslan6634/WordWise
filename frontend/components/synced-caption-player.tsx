@@ -43,7 +43,7 @@ export function estimateWordTimes(text: string, startSec: number, endSec: number
 const FADED = "#b9bfb4";
 const SPOKEN = "#e3b800";
 /** Vurgulamayı kelime zamanından bu kadar saniye ERKEN başlat (YouTube gecikmesi + altyazının geç görünmesi için). */
-export const DEFAULT_LEAD_SEC = 0.3;
+export const DEFAULT_LEAD_SEC = 0.15;
 
 export default function SyncedCaptionPlayer({
   videoId,
@@ -52,23 +52,20 @@ export default function SyncedCaptionPlayer({
   text,
   words,
   leadSec,
-  adjustable = false,
 }: {
   videoId: string;
   startSec: number;
   endSec: number;
   text: string;
   words?: CaptionWord[];
-  /** Vurgu ne kadar erken başlasın (sn). Varsayılan 0.3. */
+  /** Vurgu ne kadar erken başlasın (sn). Varsayılan 0.15. */
   leadSec?: number;
-  /** true ise altta senkron ayarı kaydırıcısı gösterilir (admin önizlemesi için). */
-  adjustable?: boolean;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YtPlayer | null>(null);
   const [time, setTime] = useState(startSec);
   const [error, setError] = useState("");
-  const [lead, setLead] = useState(leadSec ?? DEFAULT_LEAD_SEC);
+  const lead = leadSec ?? DEFAULT_LEAD_SEC;
   const captionWords = useMemo(() => words ?? estimateWordTimes(text, startSec, endSec), [words, text, startSec, endSec]);
 
   useEffect(() => {
@@ -183,12 +180,6 @@ export default function SyncedCaptionPlayer({
       >
         Cümleyi tekrar oynat
       </button>
-      {adjustable && (
-        <label style={{ justifySelf: "center", display: "flex", alignItems: "center", gap: 10, fontSize: 12, color: "#68756a" }}>
-          Senkron ayarı: vurgu {lead.toFixed(2)} sn erken
-          <input type="range" min={-0.5} max={1.5} step={0.05} value={lead} onChange={(event) => setLead(Number(event.target.value))} />
-        </label>
-      )}
     </div>
   );
 }

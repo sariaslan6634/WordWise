@@ -105,7 +105,7 @@ export default function ClipManager({ initialClips }: { initialClips: VideoClip[
           {!clip.isPublished && <button type="button" className="clip-button primary" disabled={!passed || actingId === clip.id} title={passed ? undefined : "Kalite kontrolünden geçmeyen klip yayınlanamaz"} onClick={() => review(clip, "publish")}>Yayınla</button>}
           <button type="button" className="clip-button danger" disabled={actingId === clip.id} onClick={() => review(clip, "reject")}>{clip.isPublished ? "Yayından kaldır" : "Reddet"}</button>
         </div>
-        {open && <div className="clip-preview"><SyncedCaptionPlayer videoId={clip.youtubeId} startSec={clip.startSec} endSec={clip.endSec} text={clip.text} words={clip.words} adjustable/></div>}
+        {open && <div className="clip-preview"><SyncedCaptionPlayer videoId={clip.youtubeId} startSec={clip.startSec} endSec={clip.endSec} text={clip.text} words={clip.words}/></div>}
       </article>;
     })}</div>
   </section>;

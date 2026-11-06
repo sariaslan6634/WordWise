@@ -58,6 +58,14 @@ namespace WordWise.Infrastructure.Services
             return null;
         }
 
+        /// <summary>Satırlardaki kelime zamanlarını tek listeye açar; hiç yoksa null döner.</summary>
+        public static List<CaptionWord>? FlattenWords(IReadOnlyList<CaptionLine>? lines)
+        {
+            if (lines is null) return null;
+            var words = lines.Where(l => l.Words is { Count: > 0 }).SelectMany(l => l.Words!).ToList();
+            return words.Count > 0 ? words : null;
+        }
+
         /// <summary>fmt=json3 altyazı içeriğini satırlara çevirir. Otomatik altyazıda kelime zamanları varsa onları da doldurur.</summary>
         public static List<CaptionLine> ParseJson3(string json)
         {
