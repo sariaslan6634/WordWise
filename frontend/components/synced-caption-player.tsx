@@ -7,6 +7,8 @@ export type CaptionWord = { text: string; start: number; end: number };
 type YtPlayer = {
   destroy(): void;
   getCurrentTime(): number;
+  pauseVideo(): void;
+  playVideo(): void;
   loadVideoById(options: { videoId: string; startSeconds: number; endSeconds: number }): void;
 };
 type YtApi = {
@@ -40,8 +42,6 @@ export function estimateWordTimes(text: string, startSec: number, endSec: number
   });
 }
 
-const FADED = "#b9bfb4";
-const SPOKEN = "#e3b800";
 /** Vurgulamayı kelime zamanından bu kadar saniye ERKEN başlat (YouTube gecikmesi + altyazının geç görünmesi için). */
 export const DEFAULT_LEAD_SEC = 0.15;
 
@@ -55,6 +55,8 @@ export default function SyncedCaptionPlayer({
   loops = 1,
   autoPlay = false,
   onFinished,
+  variant = "default",
+  paused = false,
 }: {
   videoId: string;
   startSec: number;
@@ -69,6 +71,10 @@ export default function SyncedCaptionPlayer({
   autoPlay?: boolean;
   /** Klip (tüm tekrarlarıyla) bittiğinde çağrılır. */
   onFinished?: () => void;
+  /** "cinema": koyu, geniş (16:9) sinema görünümü. */
+  variant?: "default" | "cinema";
+  /** true iken video durdurulur; false olunca (biz durdurduysak) kaldığı yerden devam eder. */
+  paused?: boolean;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YtPlayer | null>(null);
@@ -81,6 +87,15 @@ export default function SyncedCaptionPlayer({
   const loopsRef = useRef(loops);
   const onFinishedRef = useRef(onFinished);
   useEffect(() => { loopsRef.current = loops; onFinishedRef.current = onFinished; });
+  const pausedByUsRef = useRef(false);
+  useEffect(() => {
+    const player = playerRef.current;
+    if (!player) return;
+    try {
+      if (paused) { player.pauseVideo(); pausedByUsRef.current = true; }
+      else if (pausedByUsRef.current) { pausedByUsRef.current = false; player.playVideo(); }
+    } catch { /* oynatıcı henüz hazır değil */ }
+  }, [paused]);
   const lead = leadSec ?? DEFAULT_LEAD_SEC;
   const captionWords = useMemo(() => words ?? estimateWordTimes(text, startSec, endSec), [words, text, startSec, endSec]);
 
@@ -182,51 +197,21 @@ export default function SyncedCaptionPlayer({
   }
 
   return (
-    <div style={{ display: "grid", gap: 18, maxWidth: 760, margin: "0 auto" }}>
-      <div style={{ aspectRatio: "16 / 9", background: "#17221c", borderRadius: 12, overflow: "hidden" }}>
-        <div ref={hostRef} style={{ width: "100%", height: "100%" }} />
+    <div className={`scp${variant === "cinema" ? " scp-cinema" : ""}`}>
+      <div className="scp-video">
+        <div ref={hostRef} className="scp-host" />
       </div>
-      {error && <p role="alert" style={{ color: "#a54b43", fontSize: 12 }}>{error}</p>}
-      <p
-        aria-live="off"
-        style={{
-          fontFamily: "Georgia, 'Times New Roman', serif",
-          fontSize: 30,
-          lineHeight: 1.5,
-          textAlign: "center",
-          margin: 0,
-        }}
-      >
-        {captionWords.map((word, index) => {
-          const spoken = time >= word.start - lead;
-          return (
-            <span
-              key={`${word.text}-${index}`}
-              style={{
-                color: spoken ? SPOKEN : FADED,
-                transition: "color .08s linear",
-                marginRight: "0.3em",
-                display: "inline-block",
-              }}
-            >
+      {error && <p role="alert" className="scp-error">{error}</p>}
+      <p className="scp-caption" aria-live="off">
+        <span className="scp-caption-inner">
+          {captionWords.map((word, index) => (
+            <span key={`${word.text}-${index}`} className={`scp-word${time >= word.start - lead ? " on" : ""}`}>
               {word.text}
             </span>
-          );
-        })}
+          ))}
+        </span>
       </p>
-      <button
-        type="button"
-        onClick={replay}
-        style={{
-          justifySelf: "center",
-          border: "1px solid #e7ebe2",
-          borderRadius: 999,
-          background: "#fff",
-          padding: "8px 16px",
-          fontSize: 12,
-          cursor: "pointer",
-        }}
-      >
+      <button type="button" className="scp-replay" onClick={replay}>
         Cümleyi tekrar oynat{loops > 1 ? ` · tekrar ${Math.min(play, loops)}/${loops}` : ""}
       </button>
     </div>

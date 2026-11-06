@@ -47,16 +47,17 @@ export default function ClipPractice({ initialClips }: { initialClips: LearnerCl
   const [waiting, setWaiting] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  const [reportDone, setReportDone] = useState(false);
   const [reason, setReason] = useState<ClipReportReason>("CaptionSync");
   const [note, setNote] = useState("");
   const [reporting, setReporting] = useState(false);
-  const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [loadingMore, setLoadingMore] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const hadClips = useRef(initialClips.length > 0);
 
   const clip = clips[index];
-  const finishedAll = !clip;
 
   useEffect(() => {
     const saved = loadSettings();
@@ -77,7 +78,6 @@ export default function ClipPractice({ initialClips }: { initialClips: LearnerCl
 
   const goTo = useCallback((next: number) => {
     clearTimer();
-    setReportOpen(false);
     setError("");
     setIndex(next);
   }, [clearTimer]);
@@ -103,6 +103,34 @@ export default function ClipPractice({ initialClips }: { initialClips: LearnerCl
     saveSettings({ autoNext, loop: value });
   }
 
+  // ---- Bildirim penceresi ----
+  function openReport() {
+    clearTimer();
+    setHasInteracted(true);
+    setError("");
+    setReportDone(false);
+    setReportOpen(true);
+  }
+
+  const closeReport = useCallback(() => {
+    if (reporting) return;
+    if (reportDone && clip) {
+      setClips((current) => current.filter((item) => item.id !== clip.id)); // bildirilen klip bir daha gösterilmez
+    }
+    setReportOpen(false);
+    setReportDone(false);
+    setNote("");
+    setError("");
+  }, [reporting, reportDone, clip]);
+
+  useEffect(() => {
+    if (!reportOpen) return;
+    modalRef.current?.focus();
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") closeReport(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [reportOpen, closeReport]);
+
   async function submitReport() {
     if (!clip) return;
     setReporting(true); setError("");
@@ -112,11 +140,7 @@ export default function ClipPractice({ initialClips }: { initialClips: LearnerCl
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reason, note: note.trim() || null }),
       });
-      clearTimer();
-      setNotice("Video bildirildi. Teşekkürler, ekibimiz inceleyecek.");
-      setReportOpen(false);
-      setNote("");
-      setClips((current) => current.filter((item) => item.id !== clip.id)); // bildirilen klip bir daha gösterilmez
+      setReportDone(true);
     } catch (value) {
       setError(value instanceof Error ? value.message : "Bildirim gönderilemedi.");
     } finally { setReporting(false); }
@@ -126,32 +150,27 @@ export default function ClipPractice({ initialClips }: { initialClips: LearnerCl
     setLoadingMore(true); setError("");
     try {
       const fresh = await request<LearnerClip[]>("Clips?count=20");
-      setClips(fresh); setIndex(0); setNotice("");
+      setClips(fresh); setIndex(0);
+      if (fresh.length > 0) hadClips.current = true;
     } catch (value) {
       setError(value instanceof Error ? value.message : "Yeni klipler alınamadı.");
     } finally { setLoadingMore(false); }
   }
 
-  if (clips.length === 0 && !notice) {
-    return <p className="learn-empty">Henüz yayınlanmış klip yok. Biraz sonra tekrar bak.</p>;
+  if (!clip && !hadClips.current) {
+    return <p className="cinema-empty">Henüz yayınlanmış klip yok. Biraz sonra tekrar bak.</p>;
   }
 
-  return <div className="clip-practice">
-    <div className="clip-practice-settings">
-      <label className="clip-switch"><input type="checkbox" checked={autoNext} onChange={(event) => toggleAutoNext(event.target.checked)}/><span>Otomatik geçiş <small>(klip bitince 2 sn bekle, sonrakine geç)</small></span></label>
-      <label className="clip-switch"><input type="checkbox" checked={loop} onChange={(event) => toggleLoop(event.target.checked)}/><span>Döngü <small>({LOOP_COUNT} kez tekrar oynat)</small></span></label>
-    </div>
-
-    {notice && <div className="learn-alert clip-practice-notice" role="status">{notice}</div>}
-    {error && <p className="preview-error" role="alert">{error}</p>}
-
-    {finishedAll ? <div className="clip-practice-done">
+  return <div className="cinema-stage">
+    {!clip ? <div className="cinema-done">
       <h2>Bu seri bitti 🎉</h2>
       <p>Tüm klipleri izledin. Yeni bir seri için devam edebilirsin.</p>
-      <button type="button" className="clip-button primary" onClick={loadMore} disabled={loadingMore}>{loadingMore ? "Yükleniyor…" : "Yeni klipler getir"}</button>
+      <button type="button" className="cinema-button primary" onClick={loadMore} disabled={loadingMore}>{loadingMore ? "Yükleniyor…" : "Yeni klipler getir"}</button>
+      {error && <p className="cinema-error" role="alert">{error}</p>}
     </div> : <>
       <SyncedCaptionPlayer
         key={clip.id}
+        variant="cinema"
         videoId={clip.youtubeId}
         startSec={clip.startSec}
         endSec={clip.endSec}
@@ -159,26 +178,51 @@ export default function ClipPractice({ initialClips }: { initialClips: LearnerCl
         words={clip.words.length > 0 ? clip.words : undefined}
         loops={loop ? LOOP_COUNT : 1}
         autoPlay={hasInteracted || index > 0}
+        paused={reportOpen}
         onFinished={handleFinished}
       />
-      <div className="clip-practice-nav">
-        <button type="button" className="clip-button" onClick={() => { setHasInteracted(true); goTo(Math.max(0, index - 1)); }} disabled={index === 0}>← Önceki</button>
-        <span>{index + 1} / {clips.length}{waiting ? " · sonraki klip geliyor…" : ""}</span>
-        <button type="button" className="clip-button primary" onClick={() => { setHasInteracted(true); goTo(index + 1); }}>Sonraki →</button>
+
+      <div className="cinema-bar">
+        <label className="cinema-switch">
+          <input type="checkbox" role="switch" checked={autoNext} onChange={(event) => toggleAutoNext(event.target.checked)}/>
+          <span>Otomatik geçiş<small>Klip bitince 2 sn bekle, sonrakine geç</small></span>
+        </label>
+        <label className="cinema-switch">
+          <input type="checkbox" role="switch" checked={loop} onChange={(event) => toggleLoop(event.target.checked)}/>
+          <span>Döngü<small>{LOOP_COUNT} kez tekrar oynat</small></span>
+        </label>
+        <div className="cinema-bar-end">
+          <button type="button" className="cinema-button report" onClick={openReport}>⚑ Videoyu bildir</button>
+        </div>
       </div>
 
-      <div className="clip-practice-report">
-        {!reportOpen && <button type="button" className="clip-button danger" onClick={() => { clearTimer(); setReportOpen(true); }}>⚑ Videoyu bildir</button>}
-        {reportOpen && <form className="clip-report-form" onSubmit={(event) => { event.preventDefault(); void submitReport(); }}>
-          <b>Bu videoyla ilgili sorun nedir?</b>
-          {reasons.map((item) => <label key={item.value}><input type="radio" name="clip-report-reason" value={item.value} checked={reason === item.value} onChange={() => setReason(item.value)}/> {item.label}</label>)}
-          <textarea placeholder="İstersen kısaca açıkla (isteğe bağlı)" maxLength={500} value={note} onChange={(event) => setNote(event.target.value)}/>
-          <div className="clip-actions">
-            <button type="submit" className="clip-button primary" disabled={reporting}>{reporting ? "Gönderiliyor…" : "Bildir"}</button>
-            <button type="button" className="clip-button" onClick={() => setReportOpen(false)} disabled={reporting}>Vazgeç</button>
+      <div className="cinema-nav">
+        <button type="button" className="cinema-button" onClick={() => { setHasInteracted(true); goTo(Math.max(0, index - 1)); }} disabled={index === 0}>← Önceki</button>
+        <span>{index + 1} / {clips.length}{waiting ? " · sonraki klip geliyor…" : ""}</span>
+        <button type="button" className="cinema-button primary" onClick={() => { setHasInteracted(true); goTo(index + 1); }}>Sonraki →</button>
+      </div>
+    </>}
+
+    {reportOpen && clip && <div className="cinema-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) closeReport(); }}>
+      <div className="cinema-modal" role="dialog" aria-modal="true" aria-labelledby="report-title" tabIndex={-1} ref={modalRef}>
+        {reportDone ? <div className="cinema-success">
+          <span className="cinema-success-icon" aria-hidden="true">✓</span>
+          <h2 id="report-title">Video bildirildi</h2>
+          <p>Teşekkürler, ekibimiz inceleyecek. Bu video artık sana gösterilmeyecek.</p>
+          <button type="button" className="cinema-button primary" onClick={closeReport}>Kapat</button>
+        </div> : <form onSubmit={(event) => { event.preventDefault(); void submitReport(); }} style={{ display: "grid", gap: 16 }}>
+          <div><h2 id="report-title">Videoyu bildir</h2><p>Video durduruldu. Bu videoyla ilgili sorun nedir?</p></div>
+          <fieldset className="cinema-reasons">
+            {reasons.map((item) => <label key={item.value} className="cinema-reason"><input type="radio" name="clip-report-reason" value={item.value} checked={reason === item.value} onChange={() => setReason(item.value)}/>{item.label}</label>)}
+          </fieldset>
+          <textarea placeholder="İstersen kısaca açıkla (isteğe bağlı)" maxLength={500} value={note} onChange={(event) => setNote(event.target.value)} aria-label="Açıklama (isteğe bağlı)"/>
+          {error && <p className="cinema-error" role="alert">{error}</p>}
+          <div className="cinema-modal-actions">
+            <button type="button" className="cinema-button" onClick={closeReport} disabled={reporting}>Vazgeç</button>
+            <button type="submit" className="cinema-button primary" disabled={reporting}>{reporting ? "Gönderiliyor…" : "Bildir"}</button>
           </div>
         </form>}
       </div>
-    </>}
+    </div>}
   </div>;
 }
