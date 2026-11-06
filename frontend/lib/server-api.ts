@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { VideoClip, AdminUser, ApiEnvelope, AuthResponse, DashboardStats, PagedResponse, PendingContent, SavedWord, UserProfile, VideoCandidate, VideoCandidateReview, WordDetail, WordSummary } from "./contracts";
+import type { LearnerClip, VideoClip, AdminUser, ApiEnvelope, AuthResponse, DashboardStats, PagedResponse, PendingContent, SavedWord, UserProfile, VideoCandidate, VideoCandidateReview, WordDetail, WordSummary } from "./contracts";
 
 export const apiBaseUrl = (process.env.WORDWISE_API_URL || "http://localhost:5271").replace(/\/$/, "");
 
@@ -54,6 +54,10 @@ export async function getAdminPendingContent(token?: string) {
 
 export async function getAdminVideoCandidatesByWordId(wordId: string, token?: string) {
   return apiRequest<VideoCandidate[]>(`/api/AdminVideo/candidates/${encodeURIComponent(wordId)}`, token);
+}
+
+export async function getLearnerClips(token?: string, count = 20) {
+  return apiRequest<LearnerClip[]>(`/api/Clips?count=${count}`, token);
 }
 
 export async function getAdminClips(token?: string) {

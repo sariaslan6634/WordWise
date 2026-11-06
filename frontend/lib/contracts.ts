@@ -91,6 +91,17 @@ export interface VideoClip {
   qcWarnings: string[];
 }
 
+export interface LearnerClip {
+  id: string;
+  youtubeId: string;
+  startSec: number;
+  endSec: number;
+  text: string;
+  words: { text: string; start: number; end: number }[];
+}
+
+export type ClipReportReason = "Quality" | "CaptionSync" | "Inappropriate" | "Other";
+
 export interface VideoCandidateReview {
   candidate: VideoCandidate;
   word: WordDetail;

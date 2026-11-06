@@ -52,6 +52,9 @@ export default function SyncedCaptionPlayer({
   text,
   words,
   leadSec,
+  loops = 1,
+  autoPlay = false,
+  onFinished,
 }: {
   videoId: string;
   startSec: number;
@@ -60,23 +63,58 @@ export default function SyncedCaptionPlayer({
   words?: CaptionWord[];
   /** Vurgu ne kadar erken başlasın (sn). Varsayılan 0.15. */
   leadSec?: number;
+  /** Klip kaç kez üst üste oynatılsın (varsayılan 1). Örn. 3 = ilk oynatma + 2 tekrar. */
+  loops?: number;
+  /** Klip yüklenir yüklenmez otomatik başlasın. */
+  autoPlay?: boolean;
+  /** Klip (tüm tekrarlarıyla) bittiğinde çağrılır. */
+  onFinished?: () => void;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YtPlayer | null>(null);
   const [time, setTime] = useState(startSec);
   const [error, setError] = useState("");
+  const [play, setPlay] = useState(1);
+  const playsRef = useRef(0);
+  const finishedRef = useRef(false);
+  const armedRef = useRef(false); // oynatma bitiş saniyesinden uzaklaşınca true olur; tekrar başlarken eski bitişin yeniden sayılmasını önler
+  const loopsRef = useRef(loops);
+  const onFinishedRef = useRef(onFinished);
+  useEffect(() => { loopsRef.current = loops; onFinishedRef.current = onFinished; });
   const lead = leadSec ?? DEFAULT_LEAD_SEC;
   const captionWords = useMemo(() => words ?? estimateWordTimes(text, startSec, endSec), [words, text, startSec, endSec]);
 
   useEffect(() => {
     let disposed = false;
     let frame = 0;
+    let mount: HTMLDivElement | null = null;
+    playsRef.current = 0;
+    finishedRef.current = false;
+    armedRef.current = false;
     const w = window as unknown as YtWindow;
     const previousReady = w.onYouTubeIframeAPIReady;
 
+    // Klip bitti: tekrar kaldıysa baştan oynat, yoksa bitti haberini ver.
+    const handleEnd = () => {
+      if (finishedRef.current || !armedRef.current) return;
+      armedRef.current = false;
+      finishedRef.current = true;
+      playsRef.current += 1;
+      if (playsRef.current < loopsRef.current) {
+        setPlay(playsRef.current + 1);
+        finishedRef.current = false;
+        playerRef.current?.loadVideoById({ videoId, startSeconds: startSec, endSeconds: endSec });
+      } else {
+        onFinishedRef.current?.();
+      }
+    };
+
     const createPlayer = () => {
       if (disposed || !hostRef.current || !w.YT?.Player || playerRef.current) return;
-      playerRef.current = new w.YT.Player(hostRef.current, {
+      // YouTube oynatıcısı verdiği elemanı iframe ile değiştirir; bu yüzden her seferinde yeni bir iç eleman veriyoruz.
+      mount = document.createElement("div");
+      hostRef.current.appendChild(mount);
+      playerRef.current = new w.YT.Player(mount, {
         height: "100%",
         width: "100%",
         videoId,
@@ -84,6 +122,7 @@ export default function SyncedCaptionPlayer({
           controls: 1,
           enablejsapi: 1,
           playsinline: 1,
+          autoplay: autoPlay ? 1 : 0,
           rel: 0,
           start: Math.floor(startSec),
           end: Math.ceil(endSec),
@@ -93,13 +132,18 @@ export default function SyncedCaptionPlayer({
           onReady: () => {
             const tick = () => {
               try {
-                if (playerRef.current) setTime(playerRef.current.getCurrentTime() || 0);
+                if (playerRef.current) {
+                  const current = playerRef.current.getCurrentTime() || 0;
+                  setTime(current);
+                  if (!armedRef.current && current < endSec - 0.5) armedRef.current = true;
+                  if (current >= endSec - 0.15 && current > startSec + 0.3) handleEnd();
+                }
               } catch { /* oynatıcı yüklenirken geçici hata */ }
               frame = requestAnimationFrame(tick);
             };
             frame = requestAnimationFrame(tick);
           },
-          onStateChange: () => undefined,
+          onStateChange: (event) => { if (event.data === 0) handleEnd(); },
         },
       });
     };
@@ -125,10 +169,15 @@ export default function SyncedCaptionPlayer({
       cancelAnimationFrame(frame);
       playerRef.current?.destroy();
       playerRef.current = null;
+      mount?.remove();
     };
-  }, [videoId, startSec, endSec]);
+  }, [videoId, startSec, endSec, autoPlay]);
 
   function replay() {
+    playsRef.current = 0;
+    finishedRef.current = false;
+    armedRef.current = false;
+    setPlay(1);
     playerRef.current?.loadVideoById({ videoId, startSeconds: startSec, endSeconds: endSec });
   }
 
@@ -178,7 +227,7 @@ export default function SyncedCaptionPlayer({
           cursor: "pointer",
         }}
       >
-        Cümleyi tekrar oynat
+        Cümleyi tekrar oynat{loops > 1 ? ` · tekrar ${Math.min(play, loops)}/${loops}` : ""}
       </button>
     </div>
   );

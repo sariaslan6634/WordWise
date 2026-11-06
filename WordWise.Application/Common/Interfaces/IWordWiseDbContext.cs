@@ -21,6 +21,7 @@ namespace WordWise.Application.Common.Interfaces
         public DbSet<UserLoginEvent> UserLoginEvents { get; }
         public DbSet<VideoClip> VideoClips { get; }
         public DbSet<DiscoveredVideo> DiscoveredVideos { get; }
+        public DbSet<ClipReport> ClipReports { get; }
 
         int SaveChanges();
         Task<int> SaveChangesAsync(CancellationToken cancellationToken);

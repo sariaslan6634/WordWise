@@ -22,6 +22,7 @@ namespace WordWise.Infrastructure.Persistence.Context
         public DbSet<UserLoginEvent> UserLoginEvents { get; set; }
         public DbSet<VideoClip> VideoClips { get; set; }
         public DbSet<DiscoveredVideo> DiscoveredVideos { get; set; }
+        public DbSet<ClipReport> ClipReports { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -39,6 +40,7 @@ namespace WordWise.Infrastructure.Persistence.Context
             builder.Entity<UserXpHistory>().HasQueryFilter(x => !x.IsDeleted);
             builder.Entity<UserLoginEvent>().HasQueryFilter(x => !x.IsDeleted);
             builder.Entity<VideoClip>().HasQueryFilter(x => !x.IsDeleted);
+            builder.Entity<ClipReport>().HasQueryFilter(x => !x.IsDeleted);
         }
         public override int SaveChanges()
         {
