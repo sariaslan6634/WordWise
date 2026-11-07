@@ -20,5 +20,6 @@
   <ItemGroup>
     <ProjectReference Include="..\WordWise.Application\WordWise.Application.csproj" />
     <ProjectReference Include="..\WordWise.Infrastructure\WordWise.Infrastructure.csproj" />
+    <ProjectReference Include="..\WordWise.WiktionaryImporter\WordWise.WiktionaryImporter.csproj" />
   </ItemGroup>
 </Project>
