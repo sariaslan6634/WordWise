@@ -3,7 +3,7 @@ using Microsoft.Data.SqlClient;
 using WordWise.WiktionaryImporter;
 
 // Kullanım:
-//   dotnet run --project WordWise.WiktionaryImporter -c Release -- --file "D:\raw-wiktextract-data.jsonl" --connection "<bağlantı>" [--limit 50000] [--wordlist top20k.txt] [--dry-run]
+//   dotnet run --project WordWise.WiktionaryImporter -c Release -- --file "D:\raw-wiktextract-data.jsonl" --connection "<bağlantı>" [--limit 50000] [--wordlist top20k.txt] [--dry-run] [--publish]
 var options = ImporterOptions.Parse(args);
 if (options is null) return 1;
 
@@ -53,7 +53,7 @@ while (!cancelled && (line = file.ReadLine()) is not null)
     }
     else
     {
-        AddRow(table, word);
+        AddRow(table, word, options.Publish);
         if (table.Rows.Count >= options.Batch) inserted += Flush(table, options.Connection);
     }
     if (options.Limit > 0 && accepted >= options.Limit) break;
@@ -88,7 +88,7 @@ static DataTable NewTable()
     return t;
 }
 
-static void AddRow(DataTable t, ImportedWord w)
+static void AddRow(DataTable t, ImportedWord w, bool publish)
 {
     var now = DateTime.UtcNow;
     var row = t.NewRow();
@@ -108,8 +108,8 @@ static void AddRow(DataTable t, ImportedWord w)
     row["SourceProvider"] = "Wiktionary";
     row["SourceUrl"] = $"https://en.wiktionary.org/wiki/{w.Text}";
     row["ImportedAt"] = now;
-    row["IsPublished"] = false;   // admin onayı olmadan öğrencilere görünmez
-    row["IsApproved"] = false;
+    row["IsPublished"] = publish;   // --publish verilmezse admin onayı beklenir
+    row["IsApproved"] = publish;
     t.Rows.Add(row);
 }
 
@@ -131,6 +131,7 @@ internal sealed class ImporterOptions
     public long Limit { get; private set; }
     public int Batch { get; private set; } = 5000;
     public bool DryRun { get; private set; }
+    public bool Publish { get; private set; }
 
     public static ImporterOptions? Parse(string[] args)
     {
@@ -149,6 +150,7 @@ internal sealed class ImporterOptions
                 case "--limit": long.TryParse(Next(), out var l); o.Limit = l; break;
                 case "--batch": int.TryParse(Next(), out var b); if (b > 0) o.Batch = b; break;
                 case "--dry-run": o.DryRun = true; break;
+                case "--publish": o.Publish = true; break;
             }
         }
         if (string.IsNullOrWhiteSpace(o.File) || !System.IO.File.Exists(o.File))
