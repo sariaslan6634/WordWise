@@ -1,4 +1,5 @@
 import Link from "next/link";
+import PronunciationButton from "@/components/pronunciation-button";
 import { connection } from "next/server";
 import { getWordByText } from "@/lib/server-api";
 import { getSession } from "@/lib/session";
@@ -14,7 +15,7 @@ export default async function LearnWordPage({ params }: { params: Promise<{ text
 
   return <article className="learn-panel word-learning-page">
     <Link className="word-back-link" href="/learn">← Öğrenme alanına dön</Link>
-    <header className="word-learning-heading"><div><span className="panel-kicker">{word.category || "KELİME KÜTÜPHANESİ"}</span><h1>{word.text}</h1><div className="word-learning-meta"><span>{word.ipa || "Telaffuz bilgisi eklenmemiş"}</span><span>{word.partOfSpeech || "Kelime"}</span>{word.cefrLevel && <span>{word.cefrLevel}</span>}</div></div><span className="word-learning-spelling">Yazılış <b>{word.text}</b></span></header>
+    <header className="word-learning-heading"><div><span className="panel-kicker">{word.category || "KELİME KÜTÜPHANESİ"}</span><div className="word-title-row"><h1>{word.text}</h1><PronunciationButton audioUrl={word.audioUrl ?? null} word={word.text} /></div><div className="word-learning-meta"><span>{word.ipa || "Telaffuz bilgisi eklenmemiş"}</span><span>{word.partOfSpeech || "Kelime"}</span>{word.cefrLevel && <span>{word.cefrLevel}</span>}</div></div><span className="word-learning-spelling">Yazılış <b>{word.text}</b></span></header>
     <section className="word-learning-definition"><h2>Anlamı</h2><p>{word.definition}</p></section>
     {word.videos.length > 0 && <section className="word-learning-videos"><div className="word-learning-section-heading"><div><span className="panel-kicker">BAĞLAM İÇİNDE DİNLE</span><h2>{word.text} ile video örneği</h2></div></div><div className="word-learning-video-grid">{word.videos.map((video) => {
       const query = new URLSearchParams({ controls: "1", end: String(video.endSec), playsinline: "1", rel: "0" });
