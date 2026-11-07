@@ -85,6 +85,8 @@ export default function SyncedCaptionPlayer({
   const [time, setTime] = useState(startSec);
   const [error, setError] = useState("");
   const [play, setPlay] = useState(1);
+  const [started, setStarted] = useState(false); // video gerçekten oynamaya başlayana kadar altyazı gizli
+  const [ended, setEnded] = useState(false); // klip bitti: ortada büyük tekrar butonu göster
   const playsRef = useRef(0);
   const finishedRef = useRef(false);
   const armedRef = useRef(false); // oynatma bitiş saniyesinden uzaklaşınca true olur; tekrar başlarken eski bitişin yeniden sayılmasını önler
@@ -139,6 +141,7 @@ export default function SyncedCaptionPlayer({
       } else {
         // Klip bitti: videoyu başa sarılmış, durmuş hâlde hazırla. Oynat'a basınca baştan oynar (kaldığı yerden değil).
         try { playerRef.current?.cueVideoById({ videoId, startSeconds: startSec, endSeconds: endSec }); } catch { /* oynatıcı hazır değil */ }
+        setEnded(true);
         onFinishedRef.current?.();
       }
     };
@@ -180,6 +183,7 @@ export default function SyncedCaptionPlayer({
           },
           onStateChange: (event) => {
             if (event.data === 0) handleEnd();
+            if (event.data === 1) { setStarted(true); setEnded(false); }
             // Klip bittikten sonra kullanıcı tekrar oynata bastı: sayaçları sıfırla, baştan oynasın.
             if (event.data === 1 && finishedRef.current) {
               playsRef.current = 0;
@@ -210,6 +214,8 @@ export default function SyncedCaptionPlayer({
 
     return () => {
       disposed = true;
+      setStarted(false);
+      setEnded(false);
       cancelAnimationFrame(frame);
       playerRef.current?.destroy();
       playerRef.current = null;
@@ -218,6 +224,8 @@ export default function SyncedCaptionPlayer({
   }, [videoId, startSec, endSec, autoPlay, variant]);
 
   function replay() {
+    setStarted(false);
+    setEnded(false);
     playsRef.current = 0;
     finishedRef.current = false;
     armedRef.current = false;
@@ -242,7 +250,12 @@ export default function SyncedCaptionPlayer({
     <div className={`scp${cinema ? " scp-cinema" : ""}`}>
       <div className="scp-video" ref={stageRef}>
         <div ref={hostRef} className="scp-host" />
-        {cinema && showCaption && caption}
+        {cinema && showCaption && started && caption}
+        {ended && (
+          <div className="scp-end">
+            <button type="button" onClick={replay} aria-label="Cümleyi baştan oynat" title="Cümleyi baştan oynat"><span aria-hidden="true">↻</span></button>
+          </div>
+        )}
         {cinema && (
           <div className="scp-tools">
             <button type="button" onClick={replay} aria-label="Cümleyi tekrar oynat" title="Cümleyi tekrar oynat">
@@ -253,7 +266,7 @@ export default function SyncedCaptionPlayer({
         )}
       </div>
       {error && <p role="alert" className="scp-error">{error}</p>}
-      {!cinema && showCaption && caption}
+      {!cinema && showCaption && started && caption}
       {!cinema && (
         <button type="button" className="scp-replay" onClick={replay}>
           Cümleyi tekrar oynat{loops > 1 ? ` · tekrar ${Math.min(play, loops)}/${loops}` : ""}
