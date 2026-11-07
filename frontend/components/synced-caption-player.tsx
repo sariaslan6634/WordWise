@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 
 export type CaptionWord = { text: string; start: number; end: number };
 
@@ -9,6 +9,9 @@ type YtPlayer = {
   getCurrentTime(): number;
   pauseVideo(): void;
   playVideo(): void;
+  setVolume(volume: number): void;
+  mute(): void;
+  unMute(): void;
   loadVideoById(options: { videoId: string; startSeconds: number; endSeconds: number }): void;
   cueVideoById(options: { videoId: string; startSeconds: number; endSeconds: number }): void;
 };
@@ -45,6 +48,21 @@ export function estimateWordTimes(text: string, startSec: number, endSec: number
 
 /** Vurgulamayı kelime zamanından bu kadar saniye ERKEN başlat (YouTube gecikmesi + altyazının geç görünmesi için). */
 export const DEFAULT_LEAD_SEC = 0.15;
+
+const VOLUME_KEY = "wordwise-volume";
+
+function VolumeIcon({ level }: { level: number }) {
+  // level: 0 = sessiz, 1 = kısık, 2 = orta, 3 = yüksek
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M11 5 6 9H3v6h3l5 4z" fill="currentColor" stroke="none" />
+      {level === 0 && <path d="m16 9 5 6m0-6-5 6" />}
+      {level >= 1 && <path d="M15.5 9.5a3.5 3.5 0 0 1 0 5" />}
+      {level >= 2 && <path d="M18 7a7 7 0 0 1 0 10" />}
+      {level >= 3 && <path d="M20.5 4.5a10.5 10.5 0 0 1 0 15" />}
+    </svg>
+  );
+}
 
 export default function SyncedCaptionPlayer({
   videoId,
@@ -85,6 +103,9 @@ export default function SyncedCaptionPlayer({
   const [time, setTime] = useState(startSec);
   const [error, setError] = useState("");
   const [play, setPlay] = useState(1);
+  const [volume, setVolume] = useState(100);
+  const [muted, setMuted] = useState(false);
+  const lastVolumeRef = useRef(70);
   const [started, setStarted] = useState(false); // video gerçekten oynamaya başlayana kadar altyazı gizli
   const [ended, setEnded] = useState(false); // klip bitti: ortada büyük tekrar butonu göster
   const playsRef = useRef(0);
@@ -105,6 +126,20 @@ export default function SyncedCaptionPlayer({
       if (document.fullscreenElement) void document.exitFullscreen();
       else void stageRef.current?.requestFullscreen();
     } catch { /* tam ekran desteklenmiyor olabilir */ }
+  }
+  function applyVolume(next: number) {
+    const value = Math.max(0, Math.min(100, Math.round(next)));
+    setVolume(value);
+    setMuted(value === 0);
+    if (value > 0) lastVolumeRef.current = value;
+    try {
+      playerRef.current?.setVolume(value);
+      if (value === 0) playerRef.current?.mute(); else playerRef.current?.unMute();
+    } catch { /* oynatıcı henüz hazır değil */ }
+    try { window.localStorage.setItem(VOLUME_KEY, String(value)); } catch { /* depolama kapalı olabilir */ }
+  }
+  function toggleMute() {
+    applyVolume(muted || volume === 0 ? lastVolumeRef.current : 0);
   }
   const pausedByUsRef = useRef(false);
   useEffect(() => {
@@ -168,6 +203,18 @@ export default function SyncedCaptionPlayer({
         },
         events: {
           onReady: () => {
+            // Kullanıcının son seçtiği ses düzeyini uygula.
+            try {
+              const saved = Number(window.localStorage.getItem(VOLUME_KEY));
+              if (window.localStorage.getItem(VOLUME_KEY) !== null && Number.isFinite(saved)) {
+                const value = Math.max(0, Math.min(100, saved));
+                setVolume(value);
+                setMuted(value === 0);
+                if (value > 0) lastVolumeRef.current = value;
+                playerRef.current?.setVolume(value);
+                if (value === 0) playerRef.current?.mute();
+              }
+            } catch { /* depolama kapalı olabilir */ }
             const tick = () => {
               try {
                 if (playerRef.current) {
@@ -258,6 +305,20 @@ export default function SyncedCaptionPlayer({
         )}
         {cinema && (
           <div className="scp-tools">
+            <div className="scp-volume" style={{ "--v": `${muted ? 0 : volume}%` } as CSSProperties}>
+              <button type="button" onClick={toggleMute} aria-label={muted || volume === 0 ? "Sesi aç" : "Sesi kapat"} title={muted || volume === 0 ? "Sesi aç" : "Sesi kapat"}>
+                <VolumeIcon level={muted || volume === 0 ? 0 : volume < 34 ? 1 : volume < 67 ? 2 : 3} />
+              </button>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={1}
+                value={muted ? 0 : volume}
+                onChange={(event) => applyVolume(Number(event.target.value))}
+                aria-label="Ses düzeyi"
+              />
+            </div>
             <button type="button" onClick={replay} aria-label="Cümleyi tekrar oynat" title="Cümleyi tekrar oynat">
               ↻{loops > 1 ? <span>{Math.min(play, loops)}/{loops}</span> : null}
             </button>
