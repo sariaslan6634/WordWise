@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Diagnostics;
 using System.Text.Json;
 using System.Xml;
 using WordWise.Application.Common.Interfaces;
@@ -33,13 +34,69 @@ namespace WordWise.Infrastructure.Services
                 if (!doc.RootElement.TryGetProperty("items", out var items) || items.GetArrayLength() == 0)
                     return null;
 
-                return Parse(youtubeId, items[0]);
+                var details = Parse(youtubeId, items[0]);
+
+                // YouTube API sadece hd/sd söyler; HD değilse gerçek yüksekliği yt-dlp ile ölç (480p eşiği için).
+                if (!string.Equals(details.Definition, "hd", StringComparison.OrdinalIgnoreCase))
+                    details = details with { MaxHeight = await ProbeMaxHeightAsync(youtubeId, cancellationToken) };
+
+                return details;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "{VideoId} için video detayları alınırken hata oluştu.", youtubeId);
                 return null;
             }
+        }
+
+        private async Task<int?> ProbeMaxHeightAsync(string youtubeId, CancellationToken ct)
+        {
+            try
+            {
+                var exe = string.IsNullOrWhiteSpace(_options.Value.YtDlpPath) ? "yt-dlp" : _options.Value.YtDlpPath;
+                var psi = new ProcessStartInfo(exe)
+                {
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    StandardOutputEncoding = System.Text.Encoding.UTF8,
+                };
+                foreach (var arg in new[] { "--dump-single-json", "--no-playlist", "--no-warnings", "--skip-download", $"https://www.youtube.com/watch?v={youtubeId}" })
+                    psi.ArgumentList.Add(arg);
+
+                using var process = Process.Start(psi);
+                if (process is null) return null;
+
+                using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                timeout.CancelAfter(TimeSpan.FromSeconds(60));
+                var output = process.StandardOutput.ReadToEndAsync(timeout.Token);
+                _ = process.StandardError.ReadToEndAsync(timeout.Token);
+                await process.WaitForExitAsync(timeout.Token);
+                if (process.ExitCode != 0) return null;
+
+                using var doc = JsonDocument.Parse(await output);
+                return MaxHeightFromFormats(doc.RootElement);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[yt-dlp] {VideoId} için çözünürlük ölçülemedi.", youtubeId);
+                return null;
+            }
+        }
+
+        /// <summary>yt-dlp JSON çıktısındaki video biçimlerinin en yükseğini döndürür.</summary>
+        public static int? MaxHeightFromFormats(JsonElement root)
+        {
+            if (!root.TryGetProperty("formats", out var formats) || formats.ValueKind != JsonValueKind.Array) return null;
+            int? max = null;
+            foreach (var f in formats.EnumerateArray())
+            {
+                if (f.TryGetProperty("vcodec", out var vc) && vc.ValueKind == JsonValueKind.String && vc.GetString() == "none") continue;
+                if (f.TryGetProperty("height", out var h) && h.ValueKind == JsonValueKind.Number && h.TryGetInt32(out var v) && (max is null || v > max))
+                    max = v;
+            }
+            return max;
         }
 
         public static VideoDetails Parse(string youtubeId, JsonElement item)

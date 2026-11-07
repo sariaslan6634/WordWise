@@ -128,14 +128,31 @@ public class ClipAgentTests
         var lines = SampleLines();
         var track = new CaptionTrack("en", false, lines);
         var clip = ClipSelector.Select(lines, videoDurationSec: 180).First();
-        var bad = GoodDetails() with { Definition = "sd", AgeRestricted = true, Title = "NSFW xxx video" };
+        var bad = GoodDetails() with { Definition = "sd", MaxHeight = 360, AgeRestricted = true, Title = "NSFW xxx video" };
 
         var result = ClipQualityChecker.Check(clip, bad, track);
 
         Assert.False(result.Passed);
-        Assert.Contains(result.Reasons, r => r.Contains("HD"));
+        Assert.Contains(result.Reasons, r => r.Contains("360p"));
         Assert.Contains(result.Reasons, r => r.Contains("yaş sınırlı"));
         Assert.Contains(result.Reasons, r => r.Contains("yetişkin"));
+    }
+
+    [Fact]
+    public void Quality_checker_accepts_480p_but_not_below()
+    {
+        var lines = SampleLines();
+        var track = new CaptionTrack("en", false, lines);
+        var clip = ClipSelector.Select(lines, videoDurationSec: 180).First();
+
+        var ok = ClipQualityChecker.Check(clip, GoodDetails() with { Definition = "sd", MaxHeight = 480 }, track);
+        var low = ClipQualityChecker.Check(clip, GoodDetails() with { Definition = "sd", MaxHeight = 360 }, track);
+        var unknown = ClipQualityChecker.Check(clip, GoodDetails() with { Definition = "sd", MaxHeight = null }, track);
+
+        Assert.True(ok.Passed, string.Join(" | ", ok.Reasons));
+        Assert.False(low.Passed);
+        Assert.True(unknown.Passed);
+        Assert.Contains(unknown.Warnings, w => w.Contains("480p"));
     }
 
     [Fact]

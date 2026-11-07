@@ -60,17 +60,6 @@ namespace WordWise.WebAPI.Controllers.Admin
             return Ok(ApiResponse<int>.Ok(count, $"{count} video candidates fetched."));
         }
 
-        [HttpPost("candidates/{candidateId:guid}/generate-clips")]
-        [ProducesResponseType(typeof(ApiResponse<List<VideoClipDto>>), StatusCodes.Status200OK)]
-        public async Task<IActionResult> GenerateClips(
-            Guid candidateId,
-            CancellationToken cancellationToken)
-        {
-            var clips = await _mediator.Send(new GenerateClipsCommand(candidateId), cancellationToken);
-            var passed = clips.Count(c => c.QcStatus == "Passed");
-            return Ok(ApiResponse<List<VideoClipDto>>.Ok(clips, $"{clips.Count} clips generated, {passed} passed quality control."));
-        }
-
         /// <summary>Kelimeden bağımsız: bir YouTube bağlantısından/kimliğinden klip üretir.</summary>
         [HttpPost("clips/from-video")]
         [ProducesResponseType(typeof(ApiResponse<List<VideoClipDto>>), StatusCodes.Status200OK)]
@@ -127,24 +116,6 @@ namespace WordWise.WebAPI.Controllers.Admin
         {
             var count = await _mediator.Send(new SetBurnedInCaptionsCommand(youtubeId, request.Value), cancellationToken);
             return Ok(ApiResponse<int>.Ok(count, $"{count} clips updated."));
-        }
-
-        [HttpGet("clips/by-video/{youtubeId}")]
-        [ProducesResponseType(typeof(ApiResponse<List<VideoClipDto>>), StatusCodes.Status200OK)]
-        public async Task<IActionResult> GetClipsByVideo(string youtubeId, CancellationToken cancellationToken)
-        {
-            var clips = await _mediator.Send(new GetClipsByYoutubeIdQuery(youtubeId), cancellationToken);
-            return Ok(ApiResponse<List<VideoClipDto>>.Ok(clips));
-        }
-
-        [HttpGet("candidates/{candidateId:guid}/clips")]
-        [ProducesResponseType(typeof(ApiResponse<List<VideoClipDto>>), StatusCodes.Status200OK)]
-        public async Task<IActionResult> GetClips(
-            Guid candidateId,
-            CancellationToken cancellationToken)
-        {
-            var clips = await _mediator.Send(new GetClipsByCandidateQuery(candidateId), cancellationToken);
-            return Ok(ApiResponse<List<VideoClipDto>>.Ok(clips));
         }
 
         [HttpPost("candidates/{candidateId:guid}/approve")]

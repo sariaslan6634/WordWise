@@ -12,13 +12,14 @@ namespace WordWise.Application.Features.Clips.Services
         private const double MinWordsPerSecond = 1.0;
         private const double MaxWordsPerSecond = 5.0;
         private const double ContextSec = 2.0;
+        public const int MinVideoHeight = 480;
 
         public static QcResult Check(ClipCandidate clip, VideoDetails details, CaptionTrack track)
         {
             var reasons = new List<string>();
             var warnings = new List<string>();
 
-            CheckVideoQuality(details, reasons);
+            CheckVideoQuality(details, reasons, warnings);
             CheckCaptionSync(clip, details, track, reasons, warnings);
             CheckProfanity(clip, details, track, reasons);
             CheckAdultContent(clip, details, track, reasons);
@@ -26,10 +27,22 @@ namespace WordWise.Application.Features.Clips.Services
             return new QcResult(reasons.Count == 0, reasons, warnings);
         }
 
-        private static void CheckVideoQuality(VideoDetails details, List<string> reasons)
+        private static void CheckVideoQuality(VideoDetails details, List<string> reasons, List<string> warnings)
         {
-            if (!string.Equals(details.Definition, "hd", StringComparison.OrdinalIgnoreCase))
-                reasons.Add("Video kalitesi düşük: HD (en az 720p) değil.");
+            // HD (720p+) her zaman yeterli. HD değilse gerçek çözünürlüğe bakılır: en az 480p olmalı.
+            var isHd = string.Equals(details.Definition, "hd", StringComparison.OrdinalIgnoreCase);
+            if (!isHd)
+            {
+                if (details.MaxHeight is int height)
+                {
+                    if (height < MinVideoHeight)
+                        reasons.Add($"Video çözünürlüğü düşük ({height}p); en az {MinVideoHeight}p gerekli.");
+                }
+                else
+                {
+                    warnings.Add($"Video HD değil ve çözünürlüğü ölçülemedi (yt-dlp gerekli); en az {MinVideoHeight}p olduğunu kontrol edin.");
+                }
+            }
             if (!details.IsEmbeddable)
                 reasons.Add("Video başka sitelerde oynatılmaya (embed) izin vermiyor.");
             if (!string.Equals(details.PrivacyStatus, "public", StringComparison.OrdinalIgnoreCase))
