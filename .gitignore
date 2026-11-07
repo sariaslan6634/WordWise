@@ -403,3 +403,6 @@ FodyWeavers.xsd
 # Sensitive configuration files
 appsettings.Development.json
 **/appsettings.Development.json
+
+# Large local datasets (Wiktionary dump, audio files)
+Data/

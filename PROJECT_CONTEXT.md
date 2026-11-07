@@ -1,6 +1,6 @@
 # WordWise project context
 
-Last verified: 2026-10-28. This note is a compact navigation aid; source code is authoritative when behavior changes.
+Last verified: 2026-10-28 (clip/dark-theme/Wiktionary sections below added 2026-11-08; these were written without compiling or running — see "Not yet verified"). This note is a compact navigation aid; source code is authoritative when behavior changes.
 
 ## Project map
 
@@ -66,3 +66,27 @@ YouTube review flow checked 2026-10-28: the prior YouTube key was present in pre
 - The bulk import loop commits each word individually and detaches candidate fetching, so partial import is expected if later items fail.
 - `ResendEmailSender` logs and swallows provider failures; registration can succeed while its confirmation email was not delivered, and no resend-confirmation endpoint is currently present.
 - SQL Server integration/migration behavior and external provider calls are not exercised by the in-memory unit tests.
+
+## Video clips pipeline (branch `feature/clip-agents`, added 2026-11-06..08)
+
+Goal: turn YouTube videos into single-sentence "clips" for a karaoke-style learner player (`/learn/clips`).
+- Domain: `VideoClip` (YoutubeId, StartSec/EndSec, Text, `WordTimingsJson`, IsAutoCaption, IsPublished, IsRejected, `HasBurnedInCaptions`, QcStatus/QcReasons/QcWarnings, nullable `VideoCandidateId` kept only to avoid a migration), `DiscoveredVideo`, `ClipReport` (learner reports: Quality/CaptionSync/Inappropriate/Other).
+- Application `Features/Clips`: `ClipGenerator` (fetch captions -> `ClipSelector` rule-based sentence picker -> `ClipQualityChecker` -> save; auto-publish only when QC passed), `WordAligner` (aligns caption words to ASR word times), `ContentFilters` (profanity/adult lists), `ClipDiscoveryRunner`. Commands: `GenerateClipsFromVideoCommand`, Publish/Reject/SetBurnedInCaptions, ReportClip, RunDiscovery. Queries: `GetRecentClipsQuery` (admin), `GetLearnerClipsQuery`.
+- QC checks: embeddable/public, age restriction, resolution (HD always ok; otherwise yt-dlp-measured max height must be >= 480p, unmeasurable = warning only), caption-sync heuristics (speech rate 1-5 words/s, foreign overlapping caption lines, clip inside video duration), profanity, adult terms.
+- Infrastructure: `YouTubeCaptionService` (watch page -> InnerTube ANDROID -> yt-dlp; manual + ASR tracks), `YouTubeVideoDetailsService` (+ yt-dlp height probe), `YouTubeDiscoveryService`, `ClipDiscoveryWorker` (BackgroundService, `AutoDiscovery` config section, ~100 quota units per search, auto-publishes passed clips). `YouTubeSettings:YtDlpPath` configures yt-dlp.
+- API: admin (`AdminVideoController`): `POST clips/from-video`, `POST auto-discovery/run`, `GET clips`, `POST clips/{id}/publish|reject`, `POST clips/by-video/{youtubeId}/burned-in`. Learner (`ClipsController`): `GET api/Clips`, `POST api/Clips/{id}/report`. Unused candidate-based clip endpoints were removed 2026-11-07.
+- Frontend: `components/synced-caption-player.tsx` (YouTube IFrame API; rAF word highlight with 0.15s lead; `cinema` variant overlays captions inside the video, caption appears only after playback starts; auto-advance + 3x loop switches; centered replay button after finish; replay/fullscreen/volume tools in the bottom-right corner, volume saved in localStorage), `app/learn/clips/*` (report modal), `app/admin/clips/*` (generate/publish/reject/burned-in toggle). Clips with `HasBurnedInCaptions` hide our caption.
+- Migrations: the `AddBurnedInCaptionsFlag` migration had a model-snapshot problem ("DiscoveredVideos already exists"); fix = remove the pending migration, re-add, delete the CreateTable DiscoveredVideos/ClipReports parts, `dotnet ef database update`. User later reported things working.
+
+## Dark theme (2026-11-07)
+Whole site is dark: `frontend/app/globals.css` `:root` has `color-scheme:dark`, `--paper:#0b100d`, `--ink:#e8efe9`, `--muted:#93a097`, `--line:#26302a`, `--green:#c9f06b`. The original light rules were converted programmatically (surfaces dark, text light, accents kept); the old clips-only `:has(.cinema-page)` dark override was removed. globals.css is minified one-rule-per-block; later additions are appended at the end.
+
+## Wiktionary word import (2026-11-08)
+`WordWise.WiktionaryImporter` (console app, in the solution; tests in `WordWise.Tests/WiktionaryParserTests.cs`) streams `raw-wiktextract-data.jsonl` (24 GB, never uploaded; lives in git-ignored `Data/`) and bulk-inserts English single-word entries into `Words` (definition, IPA, POS, <=3 examples, <=5 synonyms/antonyms; skips proper nouns, inflections, obsolete/offensive senses, existing words). Flags: `--file`, `--connection` (or env `WORDWISE_CONNECTION`), `--limit`, `--wordlist`, `--batch`, `--dry-run`, `--publish` (insert as approved+published; otherwise unapproved). The user ran it and has Wiktionary words in the DB. CEFR level is not available from Wiktionary (left null).
+
+## Word pronunciation audio (in progress)
+- Done (frontend only): `components/pronunciation-button.tsx` speaker button next to the title on `/learn/word/[text]`; reads optional `WordDetail.audioUrl` (disabled/greyed when null). Styles `.pron-*` at the end of globals.css.
+- Next (backend): user downloaded Wiktionary audio files into `Data/wiktionary-audios` (git-ignored). Need: file naming/format/count (ask user for `ls` output), a mapping word -> file (index once, not per request), an endpoint to serve audio, and `audioUrl` in `GetWordByTextQuery`/`WordDetailDto` + frontend contract. Then test end-to-end.
+
+## Not yet verified (written without dotnet/npm in the authoring sandbox)
+The 480p QC change, dark theme, volume/replay UI, Wiktionary importer and pronunciation button were committed without being compiled; the user runs them locally. If something fails to build, fix from the compiler error. Still open: admin screen for learner clip reports, Mod 2 (fill-in-the-blank), CEFR levels for imported words, Claude-API-based checks (no API key yet).
