@@ -21,6 +21,9 @@ namespace WordWise.Application.Features.Words.Dtos
 
         public string? Category { get; set; }
 
+        /// <summary>Telaffuz ses dosyası olan aksanlar: "us" (Amerikan), "gb" (İngiliz). Dosya yoksa boş.</summary>
+        public List<string> AudioAccents { get; set; } = new();
+
         public List<WordVideoDto> Videos { get; set; } = new();
     }
     public class WordVideoDto

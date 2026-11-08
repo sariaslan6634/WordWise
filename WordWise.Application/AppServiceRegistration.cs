@@ -32,6 +32,8 @@ namespace WordWise.Application
             services.Configure<AutoDiscoverySettings>(
                 _configuration.GetSection(AutoDiscoverySettings.SectionName));
             services.AddScoped<WordWise.Application.Features.Clips.Services.ClipDiscoveryRunner>();
+            services.Configure<WordAudioSettings>(
+                _configuration.GetSection(WordAudioSettings.SectionName));
 
 
 

@@ -64,8 +64,8 @@ export interface WordDetail {
   text: string;
   definition: string;
   ipa: string | null;
-  /** Telaffuz ses dosyasının adresi (backend bağlanana kadar null olabilir). */
-  audioUrl?: string | null;
+  /** Ses dosyası olan aksanlar: "us" (Amerikan), "gb" (İngiliz). */
+  audioAccents?: string[];
   partOfSpeech: string | null;
   cefrLevel: string | null;
   exampleSentences: string[];

@@ -13,7 +13,8 @@ namespace WordWise.Application.Features.Words.Queries.GetWordByText
 
     public class GetWordByTextQueryHandler(IWordWiseDbContext _context,
         ICacheService _cache,
-        IMapper _mapper) : IRequestHandler<GetWordByTextQuery, WordDetailDto>
+        IMapper _mapper,
+        IWordAudioService _audio) : IRequestHandler<GetWordByTextQuery, WordDetailDto>
     {
         public async Task<WordDetailDto> Handle(GetWordByTextQuery request, CancellationToken cancellationToken)
         {
@@ -26,6 +27,8 @@ namespace WordWise.Application.Features.Words.Queries.GetWordByText
             if (result is null)
                 throw new NotFoundException("Word", request.text);
 
+            // Ses dosyaları önbelleğe girmesin; klasör sonradan güncellense de doğru kalsın.
+            result.AudioAccents = _audio.GetAccents(result.Text).ToList();
             return result;
         }
 

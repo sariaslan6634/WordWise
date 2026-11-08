@@ -92,3 +92,4 @@ button,input{font:inherit}
 .pron-wave{opacity:1}.pron-button.is-playing{background:var(--green);color:#1a2410}.pron-button.is-playing .pron-wave{animation:pron-pulse 1s infinite}.pron-button.is-playing .pron-wave-2{animation-delay:.2s}.pron-button.is-playing .pron-wave-3{animation-delay:.4s}
 @keyframes pron-pulse{0%,100%{opacity:.25}50%{opacity:1}}
 @media(prefers-reduced-motion:reduce){.pron-button.is-playing .pron-wave{animation:none}}
+.pron-group{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.pron-button{width:auto;min-width:48px;padding:0 14px;display:inline-flex;align-items:center;justify-content:center;gap:8px}.pron-tag{font-size:13px;font-weight:700;letter-spacing:.04em}.pron-button:only-child:not(:has(.pron-tag)){width:48px;padding:0}
