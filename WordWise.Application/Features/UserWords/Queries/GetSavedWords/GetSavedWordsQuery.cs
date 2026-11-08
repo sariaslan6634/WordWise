@@ -16,6 +16,13 @@ namespace WordWise.Application.Features.UserWords.Queries.GetSavedWords
 
     public class GetSavedWordsQueryHandler(IWordWiseDbContext _context) : IRequestHandler<GetSavedWordsQuery, PagedResponse<SavedWordDto>>
     {
+        private static string? FirstExample(string? json)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return null;
+            try { return System.Text.Json.JsonSerializer.Deserialize<List<string>>(json)?.FirstOrDefault(s => !string.IsNullOrWhiteSpace(s)); }
+            catch (System.Text.Json.JsonException) { return null; }
+        }
+
         public async Task<PagedResponse<SavedWordDto>> Handle(GetSavedWordsQuery request, CancellationToken cancellationToken)
         {
             var query = _context.UserWords.Include(x => x.Word).Where(x => x.UserId == request.UserId);
@@ -35,6 +42,7 @@ namespace WordWise.Application.Features.UserWords.Queries.GetSavedWords
                 Text = uw.Word.Text,
                 Definition = uw.Word.Definition,
                 PartOfSpeech = uw.Word.PartOfSpeech,
+                ExampleSentence = FirstExample(uw.Word.ExampleSentencesJson),
                 CefrLevel = uw.Word.CefrLevel?.ToString(),
                 KnownLevel = uw.KnownLevel,
                 NextReviewAt = uw.NextReviewAt,

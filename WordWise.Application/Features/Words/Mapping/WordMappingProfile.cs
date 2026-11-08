@@ -20,7 +20,8 @@ namespace WordWise.Application.Features.Words.Mapping
                     opt => opt.MapFrom(src => DeserializeJsonList(src.AntonymsJson)))
                 .ForMember(dest => dest.Videos,
                     opt => opt.MapFrom(src => src.Videos))
-                .ForMember(dest => dest.AudioAccents, opt => opt.Ignore());
+                .ForMember(dest => dest.AudioAccents, opt => opt.Ignore())
+                .ForMember(dest => dest.IsSaved, opt => opt.Ignore());
             CreateMap<Video, WordVideoDto>();
 
 

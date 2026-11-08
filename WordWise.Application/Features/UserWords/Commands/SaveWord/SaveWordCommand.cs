@@ -22,9 +22,20 @@ namespace WordWise.Application.Features.UserWords.Commands.SaveWord
             if (!wordExists)
                 throw new NotFoundException(nameof(Word), request.WordId);
 
-            var alreadySaved = await _context.UserWords.AnyAsync(x => x.UserId == request.UserId && x.WordId == request.WordId, cancellationToken);
-            if (alreadySaved)
-                throw new ConflictException("UserWord", "Bu kelime zaten kaydedilmiş.");
+            // Silinmiş (kayıttan çıkarılmış) satırlar da dahil bakılır: (UserId, WordId) benzersiz olduğu için yeniden kaydetmede yeni satır eklenemez, eskisi geri getirilir.
+            var existing = await _context.UserWords.IgnoreQueryFilters()
+                .FirstOrDefaultAsync(x => x.UserId == request.UserId && x.WordId == request.WordId, cancellationToken);
+            if (existing is not null)
+            {
+                if (!existing.IsDeleted)
+                    throw new ConflictException("UserWord", "Bu kelime zaten kaydedilmiş.");
+
+                existing.IsDeleted = false;
+                existing.UpdatedAt = DateTime.UtcNow;
+                existing.NextReviewAt ??= DateTime.UtcNow.AddDays(1);
+                await _context.SaveChangesAsync(cancellationToken);
+                return existing.Id;
+            }
 
             var userWord = new UserWord
             {

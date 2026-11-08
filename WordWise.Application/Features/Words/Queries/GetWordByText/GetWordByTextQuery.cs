@@ -9,7 +9,8 @@ using WordWise.Application.Features.Words.Dtos;
 
 namespace WordWise.Application.Features.Words.Queries.GetWordByText
 {
-    public record GetWordByTextQuery(string text) : IRequest<WordDetailDto>;
+    /// <param name="UserId">Verilirse sonuçta kelimenin bu üye tarafından kaydedilip kaydedilmediği (IsSaved) de döner.</param>
+    public record GetWordByTextQuery(string text, Guid? UserId = null) : IRequest<WordDetailDto>;
 
     public class GetWordByTextQueryHandler(IWordWiseDbContext _context,
         ICacheService _cache,
@@ -27,9 +28,14 @@ namespace WordWise.Application.Features.Words.Queries.GetWordByText
             if (result is null)
                 throw new NotFoundException("Word", request.text);
 
-            // Ses dosyaları önbelleğe girmesin; klasör sonradan güncellense de doğru kalsın.
-            result.AudioAccents = _audio.GetAccents(result.Text).ToList();
-            return result;
+            // Ses ve kaydedilme durumu önbelleğe girmez (kullanıcıya özel / klasör sonradan güncellenebilir);
+            // önbellekteki ortak nesneyi bozmamak için kopya üzerinde çalışılır.
+            var response = result.Clone();
+            response.AudioAccents = _audio.GetAccents(result.Text).ToList();
+            if (request.UserId is Guid userId)
+                response.IsSaved = await _context.UserWords
+                    .AnyAsync(x => x.UserId == userId && x.WordId == result.Id, cancellationToken);
+            return response;
         }
 
         private async Task<WordDetailDto?> FetchFromDatabaseAsync(string text, CancellationToken cancellationToken)

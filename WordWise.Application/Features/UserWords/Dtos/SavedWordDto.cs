@@ -13,6 +13,7 @@ namespace WordWise.Application.Features.UserWords.Dtos
         public string Text { get; set; } = string.Empty;
         public string Definition { get; set; } = string.Empty;
         public string? PartOfSpeech { get; set; }
+        public string? ExampleSentence { get; set; }
         public string? CefrLevel { get; set; }
         public int KnownLevel { get; set; }
         public DateTime? NextReviewAt { get; set; }

@@ -90,5 +90,11 @@ Whole site is dark: `frontend/app/globals.css` `:root` has `color-scheme:dark`, 
 - Frontend: `components/pronunciation-button.tsx` shows one button per available accent (US / UK), a single untagged button if only one exists, a disabled one if none. Plays via the Next proxy `/api/backend/api/WordAudio/{accent}/{word}`. Tests: `WordWise.Tests/WordAudioIndexTests.cs`.
 - Not yet tested end to end with the real folder; pending user run (`dotnet test`, restart API, open `/learn/word/<word>`).
 
+## Save word / "Kelime defterim" (2026-11-08)
+- `/learn/word/[text]` has a top-right bookmark button (`components/save-word-button.tsx`) -> `POST/DELETE /api/UserWord/{wordId}` via the Next proxy. `WordDetailDto.IsSaved` is filled per user in `GetWordByTextQueryHandler` on a clone of the cached DTO (the query now takes an optional `UserId`; `WordsController.Search` passes it from the JWT).
+- `SaveWordCommand` now restores a soft-deleted `UserWord` row instead of inserting (the unique index `(UserId, WordId)` ignores `IsDeleted`, so re-saving after unsave used to fail).
+- `/learn/words` (kelime defterim) lists text (link to the word page), definition, first example sentence (`SavedWordDto.ExampleSentence`), level and review info. No unsave button there yet.
+- Tests: `WordWise.Tests/SavedWordTests.cs`. Not compiled/run by the author.
+
 ## Not yet verified (written without dotnet/npm in the authoring sandbox)
 The 480p QC change, dark theme, volume/replay UI, Wiktionary importer and pronunciation button were committed without being compiled; the user runs them locally. If something fails to build, fix from the compiler error. Still open: admin screen for learner clip reports, Mod 2 (fill-in-the-blank), CEFR levels for imported words, Claude-API-based checks (no API key yet).

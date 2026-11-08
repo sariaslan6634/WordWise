@@ -22,7 +22,9 @@ namespace WordWise.WebAPI.Controllers
            [FromQuery] string text,
            CancellationToken cancellationToken)
         {
-            var result = await _mediator.Send(new GetWordByTextQuery(text), cancellationToken);
+            var claim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            Guid? userId = Guid.TryParse(claim, out var parsed) ? parsed : null;
+            var result = await _mediator.Send(new GetWordByTextQuery(text, userId), cancellationToken);
             return Ok(ApiResponse<WordDetailDto>.Ok(result, "Kelime Bulundu."));
         }
     }

@@ -66,6 +66,8 @@ export interface WordDetail {
   ipa: string | null;
   /** Ses dosyası olan aksanlar: "us" (Amerikan), "gb" (İngiliz). */
   audioAccents?: string[];
+  /** Giriş yapan üye bu kelimeyi kelime defterine kaydetmiş mi. */
+  isSaved?: boolean;
   partOfSpeech: string | null;
   cefrLevel: string | null;
   exampleSentences: string[];
@@ -143,6 +145,7 @@ export interface SavedWord {
   text: string;
   definition: string;
   partOfSpeech: string | null;
+  exampleSentence?: string | null;
   cefrLevel: string | null;
   knownLevel: number;
   nextReviewAt: string | null;
