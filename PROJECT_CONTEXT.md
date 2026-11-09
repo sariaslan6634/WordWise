@@ -96,5 +96,11 @@ Whole site is dark: `frontend/app/globals.css` `:root` has `color-scheme:dark`, 
 - `/learn/words` (kelime defterim) lists text (link to the word page), definition, first example sentence (`SavedWordDto.ExampleSentence`), level and review info. No unsave button there yet.
 - Tests: `WordWise.Tests/SavedWordTests.cs`. Not compiled/run by the author.
 
+## Clip categories and player options (2026-11-09)
+- Categories are computed, not stored (no migration): `Application/Features/Clips/Services/ClipClassifier` -> `general`/`song`/`twister`/`phrase` from clip text + video title (title "tongue twister" > title song keywords (lyrics, official video, karaoke, ft...) > alliteration/known twisters > curated set-phrase/idiom list > general). Songs are never auto-published (`ClipGenerator`) and get a copyright warning in QcWarnings; admin must publish them by hand.
+- `GET api/Clips?count=20&categories=song,twister,phrase` (empty/`all` = everything, random order). `LearnerClipDto.Category`.
+- `/learn/clips` toolbar switches (saved in localStorage `wordwise-clip-settings`): auto-advance, loop x3, caption on/off (default on), sync speech on/off (off = whole sentence shown, no word highlight). Category checkboxes: "Hepsi" or any of Şarkılar/Tekerlemeler/Kalıp cümleler; changing them refetches. Caption is shown only while the clip is playing (hidden before start and after the clip ends).
+- Tests: `WordWise.Tests/ClipClassifierTests.cs`. Not compiled/run by the author (TS syntax-checked only).
+
 ## Not yet verified (written without dotnet/npm in the authoring sandbox)
 The 480p QC change, dark theme, volume/replay UI, Wiktionary importer and pronunciation button were committed without being compiled; the user runs them locally. If something fails to build, fix from the compiler error. Still open: admin screen for learner clip reports, Mod 2 (fill-in-the-blank), CEFR levels for imported words, Claude-API-based checks (no API key yet).

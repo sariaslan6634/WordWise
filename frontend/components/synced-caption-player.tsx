@@ -77,6 +77,7 @@ export default function SyncedCaptionPlayer({
   variant = "default",
   paused = false,
   showCaption = true,
+  sync = true,
 }: {
   videoId: string;
   startSec: number;
@@ -97,6 +98,8 @@ export default function SyncedCaptionPlayer({
   paused?: boolean;
   /** false ise bizim altyazımız gösterilmez (videonun kendi altyazısı varsa). */
   showCaption?: boolean;
+  /** true: kelimeler konuşuldukça vurgulanır (karaoke). false: cümle baştan tam görünür, vurgu yok. */
+  sync?: boolean;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YtPlayer | null>(null);
@@ -285,7 +288,7 @@ export default function SyncedCaptionPlayer({
     <p className="scp-caption" aria-live="off">
       <span className="scp-caption-inner">
         {captionWords.map((word, index) => (
-          <span key={`${word.text}-${index}`} className={`scp-word${time >= word.start - lead ? " on" : ""}`}>
+          <span key={`${word.text}-${index}`} className={`scp-word${sync ? (time >= word.start - lead ? " on" : "") : " static"}`}>
             {word.text}
           </span>
         ))}
@@ -297,7 +300,7 @@ export default function SyncedCaptionPlayer({
     <div className={`scp${cinema ? " scp-cinema" : ""}`}>
       <div className="scp-video" ref={stageRef}>
         <div ref={hostRef} className="scp-host" />
-        {cinema && showCaption && started && caption}
+        {cinema && showCaption && started && !ended && caption}
         {ended && (
           <div className="scp-end">
             <button type="button" onClick={replay} aria-label="Cümleyi baştan oynat" title="Cümleyi baştan oynat"><span aria-hidden="true">↻</span></button>
@@ -327,7 +330,7 @@ export default function SyncedCaptionPlayer({
         )}
       </div>
       {error && <p role="alert" className="scp-error">{error}</p>}
-      {!cinema && showCaption && started && caption}
+      {!cinema && showCaption && started && !ended && caption}
       {!cinema && (
         <button type="button" className="scp-replay" onClick={replay}>
           Cümleyi tekrar oynat{loops > 1 ? ` · tekrar ${Math.min(play, loops)}/${loops}` : ""}

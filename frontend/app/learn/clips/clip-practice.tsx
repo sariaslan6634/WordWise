@@ -28,22 +28,56 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return parsed.data as T;
 }
 
-function loadSettings() {
+type Settings = {
+  autoNext: boolean;
+  loop: boolean;
+  captions: boolean; // bizim altyazımız (varsayılan açık)
+  sync: boolean; // kelime kelime senkron vurgu (kapalıysa cümle baştan tam görünür)
+  song: boolean;
+  twister: boolean;
+  phrase: boolean; // üçü de kapalı = "Hepsi"
+};
+
+const defaultSettings: Settings = { autoNext: false, loop: false, captions: true, sync: true, song: false, twister: false, phrase: false };
+
+function loadSettings(): Settings {
   try {
     const raw = window.localStorage.getItem(SETTINGS_KEY);
     if (raw) {
-      const value = JSON.parse(raw) as { autoNext?: boolean; loop?: boolean };
-      return { autoNext: value.autoNext === true, loop: value.loop === true };
+      const value = JSON.parse(raw) as Partial<Settings>;
+      return {
+        autoNext: value.autoNext === true,
+        loop: value.loop === true,
+        captions: value.captions !== false,
+        sync: value.sync !== false,
+        song: value.song === true,
+        twister: value.twister === true,
+        phrase: value.phrase === true,
+      };
     }
   } catch { /* tarayıcı depolaması kapalı olabilir */ }
-  return { autoNext: false, loop: false };
+  return defaultSettings;
 }
+
+function categoriesParam(settings: Settings) {
+  const selected = [settings.song && "song", settings.twister && "twister", settings.phrase && "phrase"].filter(Boolean);
+  return selected.length > 0 ? `&categories=${selected.join(",")}` : "";
+}
+
+const categoryChips: { key: "song" | "twister" | "phrase"; label: string }[] = [
+  { key: "song", label: "Şarkılar" },
+  { key: "twister", label: "Tekerlemeler" },
+  { key: "phrase", label: "Kalıp cümleler" },
+];
 
 export default function ClipPractice({ initialClips }: { initialClips: LearnerClip[] }) {
   const [clips, setClips] = useState(initialClips);
   const [index, setIndex] = useState(0);
-  const [autoNext, setAutoNext] = useState(false);
-  const [loop, setLoop] = useState(false);
+  const [settings, setSettings] = useState<Settings>(defaultSettings);
+  const { autoNext, loop, captions, sync } = settings;
+  const allCategories = !settings.song && !settings.twister && !settings.phrase;
+  const [fetchedEmpty, setFetchedEmpty] = useState(initialClips.length === 0);
+  const fetchId = useRef(0);
   const [waiting, setWaiting] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
@@ -55,18 +89,22 @@ export default function ClipPractice({ initialClips }: { initialClips: LearnerCl
   const [loadingMore, setLoadingMore] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
-  const hadClips = useRef(initialClips.length > 0);
 
   const clip = clips[index];
 
+  // Kayıtlı ayarları yükle; kategori seçimi "Hepsi" değilse, ilk yüklenen karışık klipler yerine seçime uygun klipleri getir.
   useEffect(() => {
     const saved = loadSettings();
-    setAutoNext(saved.autoNext);
-    setLoop(saved.loop);
+    setSettings(saved);
+    if (saved.song || saved.twister || saved.phrase) void fetchClips(saved);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function saveSettings(next: { autoNext: boolean; loop: boolean }) {
+  function update(patch: Partial<Settings>) {
+    const next = { ...settings, ...patch };
+    setSettings(next);
     try { window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(next)); } catch { /* sorun değil */ }
+    return next;
   }
 
   const clearTimer = useCallback(() => {
@@ -93,14 +131,18 @@ export default function ClipPractice({ initialClips }: { initialClips: LearnerCl
   }, [autoNext]);
 
   function toggleAutoNext(value: boolean) {
-    setAutoNext(value);
-    saveSettings({ autoNext: value, loop });
+    update({ autoNext: value });
     if (!value) clearTimer();
   }
 
-  function toggleLoop(value: boolean) {
-    setLoop(value);
-    saveSettings({ autoNext, loop: value });
+  // "Hepsi" seçilince kategoriler temizlenir; bir kategori seçilince "Hepsi" kapanır; hiç kategori kalmazsa "Hepsi" geri gelir.
+  function selectAll() {
+    if (allCategories) return;
+    void fetchClips(update({ song: false, twister: false, phrase: false }));
+  }
+
+  function toggleCategory(key: "song" | "twister" | "phrase") {
+    void fetchClips(update({ [key]: !settings[key] } as Partial<Settings>));
   }
 
   // ---- Bildirim penceresi ----
@@ -146,42 +188,61 @@ export default function ClipPractice({ initialClips }: { initialClips: LearnerCl
     } finally { setReporting(false); }
   }
 
-  async function loadMore() {
+  async function fetchClips(forSettings: Settings) {
+    const id = ++fetchId.current;
+    clearTimer();
     setLoadingMore(true); setError("");
     try {
-      const fresh = await request<LearnerClip[]>("Clips?count=20");
-      setClips(fresh); setIndex(0);
-      if (fresh.length > 0) hadClips.current = true;
+      const fresh = await request<LearnerClip[]>(`Clips?count=20${categoriesParam(forSettings)}`);
+      if (id !== fetchId.current) return; // daha yeni bir seçim yapıldı
+      setClips(fresh); setIndex(0); setFetchedEmpty(fresh.length === 0);
     } catch (value) {
-      setError(value instanceof Error ? value.message : "Yeni klipler alınamadı.");
-    } finally { setLoadingMore(false); }
-  }
-
-  if (!clip && !hadClips.current) {
-    return <p className="cinema-empty">Henüz yayınlanmış klip yok. Biraz sonra tekrar bak.</p>;
+      if (id === fetchId.current) setError(value instanceof Error ? value.message : "Klipler alınamadı.");
+    } finally {
+      if (id === fetchId.current) setLoadingMore(false);
+    }
   }
 
   return <div className="cinema-stage">
-    {!clip ? <div className="cinema-done">
+    <div className="cinema-bar">
+      <label className="cinema-switch">
+        <input type="checkbox" role="switch" checked={autoNext} onChange={(event) => toggleAutoNext(event.target.checked)}/>
+        <span>Otomatik geçiş<small>Klip bitince 2 sn bekle, sonrakine geç</small></span>
+      </label>
+      <label className="cinema-switch">
+        <input type="checkbox" role="switch" checked={loop} onChange={(event) => update({ loop: event.target.checked })}/>
+        <span>Döngü<small>{LOOP_COUNT} kez tekrar oynat</small></span>
+      </label>
+      <label className="cinema-switch">
+        <input type="checkbox" role="switch" checked={captions} onChange={(event) => update({ captions: event.target.checked })}/>
+        <span>Altyazı<small>Videonun üstünde göster</small></span>
+      </label>
+      <label className="cinema-switch">
+        <input type="checkbox" role="switch" checked={sync} onChange={(event) => update({ sync: event.target.checked })}/>
+        <span>Senkron konuşma<small>Kapalıysa cümle baştan tam görünür</small></span>
+      </label>
+      {clip && <div className="cinema-bar-end">
+        <button type="button" className="cinema-button report" onClick={openReport}>⚑ Videoyu bildir</button>
+      </div>}
+    </div>
+
+    <fieldset className="cinema-filters" aria-label="Klip türü">
+      <legend>Klip türü</legend>
+      <label className="cinema-chip"><input type="checkbox" checked={allCategories} onChange={selectAll}/><span>Hepsi</span></label>
+      {categoryChips.map((chip) => <label className="cinema-chip" key={chip.key}><input type="checkbox" checked={settings[chip.key]} onChange={() => toggleCategory(chip.key)}/><span>{chip.label}</span></label>)}
+    </fieldset>
+
+    {loadingMore && !clip ? <p className="cinema-empty">Klipler yükleniyor…</p>
+    : !clip ? (fetchedEmpty ? <div className="cinema-done">
+      <h2>Bu seçimde klip bulunamadı</h2>
+      <p>{allCategories ? "Henüz yayınlanmış klip yok. Biraz sonra tekrar bak." : "Seçtiğin türde yayınlanmış klip yok. Başka bir tür seç ya da “Hepsi”ni aç."}</p>
+      {error && <p className="cinema-error" role="alert">{error}</p>}
+    </div> : <div className="cinema-done">
       <h2>Bu seri bitti 🎉</h2>
       <p>Tüm klipleri izledin. Yeni bir seri için devam edebilirsin.</p>
-      <button type="button" className="cinema-button primary" onClick={loadMore} disabled={loadingMore}>{loadingMore ? "Yükleniyor…" : "Yeni klipler getir"}</button>
+      <button type="button" className="cinema-button primary" onClick={() => void fetchClips(settings)} disabled={loadingMore}>{loadingMore ? "Yükleniyor…" : "Yeni klipler getir"}</button>
       {error && <p className="cinema-error" role="alert">{error}</p>}
-    </div> : <>
-      <div className="cinema-bar">
-        <label className="cinema-switch">
-          <input type="checkbox" role="switch" checked={autoNext} onChange={(event) => toggleAutoNext(event.target.checked)}/>
-          <span>Otomatik geçiş<small>Klip bitince 2 sn bekle, sonrakine geç</small></span>
-        </label>
-        <label className="cinema-switch">
-          <input type="checkbox" role="switch" checked={loop} onChange={(event) => toggleLoop(event.target.checked)}/>
-          <span>Döngü<small>{LOOP_COUNT} kez tekrar oynat</small></span>
-        </label>
-        <div className="cinema-bar-end">
-          <button type="button" className="cinema-button report" onClick={openReport}>⚑ Videoyu bildir</button>
-        </div>
-      </div>
-
+    </div>) : <>
       <SyncedCaptionPlayer
         key={clip.id}
         variant="cinema"
@@ -193,7 +254,8 @@ export default function ClipPractice({ initialClips }: { initialClips: LearnerCl
         loops={loop ? LOOP_COUNT : 1}
         autoPlay={hasInteracted || index > 0}
         paused={reportOpen}
-        showCaption={!clip.hasBurnedInCaptions}
+        showCaption={captions && !clip.hasBurnedInCaptions}
+        sync={sync}
         onFinished={handleFinished}
       />
 

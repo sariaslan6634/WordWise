@@ -96,6 +96,8 @@ export interface VideoClip {
   qcWarnings: string[];
 }
 
+export type ClipCategoryKey = "general" | "song" | "twister" | "phrase";
+
 export interface LearnerClip {
   id: string;
   youtubeId: string;
@@ -104,6 +106,7 @@ export interface LearnerClip {
   text: string;
   words: { text: string; start: number; end: number }[];
   hasBurnedInCaptions: boolean;
+  category?: ClipCategoryKey;
 }
 
 export type ClipReportReason = "Quality" | "CaptionSync" | "Inappropriate" | "Other";
