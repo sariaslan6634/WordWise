@@ -10,4 +10,9 @@ namespace WordWise.Application.Features.UserWords.Dtos
     {
         public string? PersonalNote { get; set; }
     }
+
+    public class ReviewWordRequestDto
+    {
+        public bool Known { get; set; }
+    }
 }

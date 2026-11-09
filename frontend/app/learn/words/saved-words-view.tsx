@@ -1,0 +1,47 @@
+"use client";
+
+import Link from "next/link";
+import { useMemo, useState } from "react";
+import SaveWordButton from "@/components/save-word-button";
+import type { SavedWord } from "@/lib/contracts";
+
+export default function SavedWordsView({ words, totalCount }: { words: SavedWord[]; totalCount: number }) {
+  const [pos, setPos] = useState("");
+
+  // Filtre seçenekleri kullanıcının kendi kelimelerindeki türlerden çıkar (noun, verb...).
+  const partsOfSpeech = useMemo(
+    () => [...new Set(words.map((word) => word.partOfSpeech).filter((value): value is string => Boolean(value)))].sort(),
+    [words],
+  );
+  const visible = pos ? words.filter((word) => word.partOfSpeech === pos) : words;
+  const reviewHref = pos ? `/learn/words/review?pos=${encodeURIComponent(pos)}` : "/learn/words/review";
+
+  return <>
+    <div className="learn-panel-heading">
+      <div><span className="panel-kicker">KİŞİSEL KÜTÜPHANE</span><h1>Kelime defterim</h1><p>Kaydettiğin kelimeler ve tekrar durumları.</p></div>
+      <span className="learn-count">{pos ? `${visible.length} / ` : ""}{totalCount} kelime</span>
+    </div>
+
+    {words.length > 0 && <div className="learn-words-toolbar">
+      <label className="learn-filter">
+        <span>Tür</span>
+        <select value={pos} onChange={(event) => setPos(event.target.value)} aria-label="Kelime türüne göre filtrele">
+          <option value="">Tümü</option>
+          {partsOfSpeech.map((value) => <option key={value} value={value}>{value}</option>)}
+        </select>
+      </label>
+      <Link className="button learn-review-button" href={reviewHref} aria-disabled={visible.length === 0}>↻ Tekrar yap</Link>
+    </div>}
+
+    {words.length === 0 && <p className="learn-empty">Henüz kaydedilmiş kelime yok. Bir kelime sayfasında “Kaydet” butonuna bas.</p>}
+    {words.length > 0 && visible.length === 0 && <p className="learn-empty">Bu türde kayıtlı kelimen yok.</p>}
+    {visible.length > 0 && <div className="learn-word-list has-actions">{visible.map((word) => <article key={word.id}>
+      <div><h2><Link href={`/learn/word/${encodeURIComponent(word.text)}`}>{word.text}</Link></h2><span>{word.cefrLevel || "Seviye belirtilmemiş"} · {word.partOfSpeech || "Kelime"}</span></div>
+      <p>{word.definition}</p>
+      <div className="learn-word-meta"><span>Öğrenme seviyesi {word.knownLevel}/5</span><span>{word.reviewCount} tekrar</span></div>
+      <div className="learn-word-actions"><SaveWordButton wordId={word.wordId} initialSaved compact/></div>
+      {word.exampleSentence && <blockquote className="learn-example">“{word.exampleSentence}”</blockquote>}
+      {word.personalNote && <small className="learn-note">Not: {word.personalNote}</small>}
+    </article>)}</div>}
+  </>;
+}

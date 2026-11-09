@@ -33,12 +33,9 @@ type Settings = {
   loop: boolean;
   captions: boolean; // bizim altyazımız (varsayılan açık)
   sync: boolean; // kelime kelime senkron vurgu (kapalıysa cümle baştan tam görünür)
-  song: boolean;
-  twister: boolean;
-  phrase: boolean; // üçü de kapalı = "Hepsi"
 };
 
-const defaultSettings: Settings = { autoNext: false, loop: false, captions: true, sync: true, song: false, twister: false, phrase: false };
+const defaultSettings: Settings = { autoNext: false, loop: false, captions: true, sync: true };
 
 function loadSettings(): Settings {
   try {
@@ -50,34 +47,18 @@ function loadSettings(): Settings {
         loop: value.loop === true,
         captions: value.captions !== false,
         sync: value.sync !== false,
-        song: value.song === true,
-        twister: value.twister === true,
-        phrase: value.phrase === true,
       };
     }
   } catch { /* tarayıcı depolaması kapalı olabilir */ }
   return defaultSettings;
 }
 
-function categoriesParam(settings: Settings) {
-  const selected = [settings.song && "song", settings.twister && "twister", settings.phrase && "phrase"].filter(Boolean);
-  return selected.length > 0 ? `&categories=${selected.join(",")}` : "";
-}
-
-const categoryChips: { key: "song" | "twister" | "phrase"; label: string }[] = [
-  { key: "song", label: "Şarkılar" },
-  { key: "twister", label: "Tekerlemeler" },
-  { key: "phrase", label: "Kalıp cümleler" },
-];
-
 export default function ClipPractice({ initialClips }: { initialClips: LearnerClip[] }) {
   const [clips, setClips] = useState(initialClips);
   const [index, setIndex] = useState(0);
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const { autoNext, loop, captions, sync } = settings;
-  const allCategories = !settings.song && !settings.twister && !settings.phrase;
   const [fetchedEmpty, setFetchedEmpty] = useState(initialClips.length === 0);
-  const fetchId = useRef(0);
   const [waiting, setWaiting] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
@@ -92,12 +73,8 @@ export default function ClipPractice({ initialClips }: { initialClips: LearnerCl
 
   const clip = clips[index];
 
-  // Kayıtlı ayarları yükle; kategori seçimi "Hepsi" değilse, ilk yüklenen karışık klipler yerine seçime uygun klipleri getir.
   useEffect(() => {
-    const saved = loadSettings();
-    setSettings(saved);
-    if (saved.song || saved.twister || saved.phrase) void fetchClips(saved);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setSettings(loadSettings());
   }, []);
 
   function update(patch: Partial<Settings>) {
@@ -133,16 +110,6 @@ export default function ClipPractice({ initialClips }: { initialClips: LearnerCl
   function toggleAutoNext(value: boolean) {
     update({ autoNext: value });
     if (!value) clearTimer();
-  }
-
-  // "Hepsi" seçilince kategoriler temizlenir; bir kategori seçilince "Hepsi" kapanır; hiç kategori kalmazsa "Hepsi" geri gelir.
-  function selectAll() {
-    if (allCategories) return;
-    void fetchClips(update({ song: false, twister: false, phrase: false }));
-  }
-
-  function toggleCategory(key: "song" | "twister" | "phrase") {
-    void fetchClips(update({ [key]: !settings[key] } as Partial<Settings>));
   }
 
   // ---- Bildirim penceresi ----
@@ -188,19 +155,15 @@ export default function ClipPractice({ initialClips }: { initialClips: LearnerCl
     } finally { setReporting(false); }
   }
 
-  async function fetchClips(forSettings: Settings) {
-    const id = ++fetchId.current;
+  async function loadMore() {
     clearTimer();
     setLoadingMore(true); setError("");
     try {
-      const fresh = await request<LearnerClip[]>(`Clips?count=20${categoriesParam(forSettings)}`);
-      if (id !== fetchId.current) return; // daha yeni bir seçim yapıldı
+      const fresh = await request<LearnerClip[]>("Clips?count=20");
       setClips(fresh); setIndex(0); setFetchedEmpty(fresh.length === 0);
     } catch (value) {
-      if (id === fetchId.current) setError(value instanceof Error ? value.message : "Klipler alınamadı.");
-    } finally {
-      if (id === fetchId.current) setLoadingMore(false);
-    }
+      setError(value instanceof Error ? value.message : "Yeni klipler alınamadı.");
+    } finally { setLoadingMore(false); }
   }
 
   return <div className="cinema-stage">
@@ -226,21 +189,15 @@ export default function ClipPractice({ initialClips }: { initialClips: LearnerCl
       </div>}
     </div>
 
-    <fieldset className="cinema-filters" aria-label="Klip türü">
-      <legend>Klip türü</legend>
-      <label className="cinema-chip"><input type="checkbox" checked={allCategories} onChange={selectAll}/><span>Hepsi</span></label>
-      {categoryChips.map((chip) => <label className="cinema-chip" key={chip.key}><input type="checkbox" checked={settings[chip.key]} onChange={() => toggleCategory(chip.key)}/><span>{chip.label}</span></label>)}
-    </fieldset>
-
     {loadingMore && !clip ? <p className="cinema-empty">Klipler yükleniyor…</p>
     : !clip ? (fetchedEmpty ? <div className="cinema-done">
-      <h2>Bu seçimde klip bulunamadı</h2>
-      <p>{allCategories ? "Henüz yayınlanmış klip yok. Biraz sonra tekrar bak." : "Seçtiğin türde yayınlanmış klip yok. Başka bir tür seç ya da “Hepsi”ni aç."}</p>
+      <h2>Henüz klip yok</h2>
+      <p>Henüz yayınlanmış klip yok. Biraz sonra tekrar bak.</p>
       {error && <p className="cinema-error" role="alert">{error}</p>}
     </div> : <div className="cinema-done">
       <h2>Bu seri bitti 🎉</h2>
       <p>Tüm klipleri izledin. Yeni bir seri için devam edebilirsin.</p>
-      <button type="button" className="cinema-button primary" onClick={() => void fetchClips(settings)} disabled={loadingMore}>{loadingMore ? "Yükleniyor…" : "Yeni klipler getir"}</button>
+      <button type="button" className="cinema-button primary" onClick={loadMore} disabled={loadingMore}>{loadingMore ? "Yükleniyor…" : "Yeni klipler getir"}</button>
       {error && <p className="cinema-error" role="alert">{error}</p>}
     </div>) : <>
       <SyncedCaptionPlayer

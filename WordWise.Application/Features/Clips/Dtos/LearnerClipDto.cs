@@ -14,9 +14,6 @@ namespace WordWise.Application.Features.Clips.Dtos
 
         /// <summary>true ise videonun kendi altyazısı var; arayüz bizim altyazımızı göstermemeli.</summary>
         public bool HasBurnedInCaptions { get; set; }
-
-        /// <summary>"general", "song", "twister" veya "phrase".</summary>
-        public string Category { get; set; } = "general";
     }
 
     public class SetBurnedInCaptionsRequest

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 /** Instagram "kaydet" benzeri yer imi butonu: kelimeyi kelime defterine ekler / çıkarır. */
-export default function SaveWordButton({ wordId, initialSaved }: { wordId: string; initialSaved: boolean }) {
+export default function SaveWordButton({ wordId, initialSaved, compact = false }: { wordId: string; initialSaved: boolean; compact?: boolean }) {
   const router = useRouter();
   const [saved, setSaved] = useState(initialSaved);
   const [busy, setBusy] = useState(false);
@@ -31,7 +31,7 @@ export default function SaveWordButton({ wordId, initialSaved }: { wordId: strin
 
   const label = saved ? "Kelime defterinden çıkar" : "Kelime defterine kaydet";
   return (
-    <div className="save-word">
+    <div className={`save-word${compact ? " is-compact" : ""}`}>
       <button type="button" className={`save-word-button${saved ? " is-saved" : ""}`} onClick={toggle} disabled={busy} aria-pressed={saved} aria-label={label} title={label}>
         <svg viewBox="0 0 24 24" width="22" height="22" fill={saved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4.5L5 21V4a1 1 0 0 1 1-1z" />

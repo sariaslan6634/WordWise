@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using WordWise.Application.Common.Models;
+using WordWise.Application.Features.UserWords.Commands.ReviewWord;
 using WordWise.Application.Features.UserWords.Commands.SaveWord;
 using WordWise.Application.Features.UserWords.Commands.UnsaveWord;
 using WordWise.Application.Features.UserWords.Commands.UpdatePersonalNote;
@@ -38,15 +39,30 @@ namespace WordWise.WebAPI.Controllers
         [HttpGet("review")]
         [ProducesResponseType(typeof(ApiResponse<List<ReviewWordDto>>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetReviewWords(
+            [FromQuery] bool includeNotDue = false,
+            [FromQuery] string? partOfSpeech = null,
             CancellationToken cancellationToken = default)
         {
             var result = await _mediator.Send(
-                new GetReviewWordsQuery(CurrentUserId),
+                new GetReviewWordsQuery(CurrentUserId, includeNotDue, partOfSpeech),
                 cancellationToken);
 
             return Ok(ApiResponse<List<ReviewWordDto>>.Ok(
                 result, $"{result.Count} kelime incelemeye hazır."));
         }
+        /// <summary>Tekrar sırasında "bildim / bilemedim" cevabı; seviye ve sonraki tekrar zamanı güncellenir.</summary>
+        [HttpPost("{wordId:guid}/review")]
+        [ProducesResponseType(typeof(ApiResponse<ReviewWordResult>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> ReviewWord(
+            Guid wordId,
+            [FromBody] ReviewWordRequestDto dto,
+            CancellationToken cancellationToken)
+        {
+            var result = await _mediator.Send(new ReviewWordCommand(CurrentUserId, wordId, dto.Known), cancellationToken);
+            return Ok(ApiResponse<ReviewWordResult>.Ok(result));
+        }
+
         [HttpPost("{wordId:guid}")]
         [ProducesResponseType(typeof(ApiResponse<Guid>), StatusCodes.Status201Created)]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]

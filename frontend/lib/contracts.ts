@@ -96,8 +96,6 @@ export interface VideoClip {
   qcWarnings: string[];
 }
 
-export type ClipCategoryKey = "general" | "song" | "twister" | "phrase";
-
 export interface LearnerClip {
   id: string;
   youtubeId: string;
@@ -106,7 +104,6 @@ export interface LearnerClip {
   text: string;
   words: { text: string; start: number; end: number }[];
   hasBurnedInCaptions: boolean;
-  category?: ClipCategoryKey;
 }
 
 export type ClipReportReason = "Quality" | "CaptionSync" | "Inappropriate" | "Other";
@@ -155,6 +152,19 @@ export interface SavedWord {
   reviewCount: number;
   personalNote: string | null;
   savedAt: string;
+}
+
+export interface ReviewWord {
+  userWordId: string;
+  wordId: string;
+  text: string;
+  definition: string;
+  ipa: string | null;
+  partOfSpeech: string | null;
+  audioAccents: string[];
+  exampleSentences: string[];
+  knownLevel: number;
+  nextReviewAt: string | null;
 }
 
 export interface AdminUser {

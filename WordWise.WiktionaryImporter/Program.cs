@@ -4,6 +4,9 @@ using WordWise.WiktionaryImporter;
 
 // Kullanım:
 //   dotnet run --project WordWise.WiktionaryImporter -c Release -- --file "D:\raw-wiktextract-data.jsonl" --connection "<bağlantı>" [--limit 50000] [--wordlist top20k.txt] [--dry-run] [--publish]
+// CEFR seviyesi doldurma modu: Wiktionary dosyası okunmaz, sadece Words.CefrLevel güncellenir.
+if (args.Contains("--cefr-file") || args.Contains("--freq-file")) return CefrUpdater.Run(args);
+
 var options = ImporterOptions.Parse(args);
 if (options is null) return 1;
 

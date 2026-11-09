@@ -13,6 +13,8 @@ namespace WordWise.Application.Features.UserWords.Dtos
         public string Text { get; set; } = string.Empty;
         public string Definition { get; set; } = string.Empty;
         public string? Ipa { get; set; }
+        public string? PartOfSpeech { get; set; }
+        public List<string> AudioAccents { get; set; } = new();
         public List<string> ExampleSentences { get; set; } = new();
         public int KnownLevel { get; set; }
         public DateTime? NextReviewAt { get; set; }

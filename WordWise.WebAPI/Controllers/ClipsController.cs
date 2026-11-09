@@ -7,7 +7,6 @@ using WordWise.Application.Common.Models;
 using WordWise.Application.Features.Clips.Commands.ReportClip;
 using WordWise.Application.Features.Clips.Dtos;
 using WordWise.Application.Features.Clips.Queries.GetLearnerClips;
-using WordWise.Application.Features.Clips.Services;
 
 namespace WordWise.WebAPI.Controllers
 {
@@ -16,13 +15,13 @@ namespace WordWise.WebAPI.Controllers
     [Authorize]
     public class ClipsController(IMediator _mediator) : ControllerBase
     {
-        /// <summary>Öğrenci için yayındaki kliplerden rastgele bir seçki. categories: virgülle song,twister,phrase (boş veya all = hepsi).</summary>
+        /// <summary>Öğrenci için yayındaki kliplerden rastgele bir seçki.</summary>
         [HttpGet]
         [ProducesResponseType(typeof(ApiResponse<List<LearnerClipDto>>), StatusCodes.Status200OK)]
-        public async Task<IActionResult> GetClips([FromQuery] int count = 20, [FromQuery] string? categories = null, CancellationToken cancellationToken = default)
+        public async Task<IActionResult> GetClips([FromQuery] int count = 20, CancellationToken cancellationToken = default)
         {
             var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-            var clips = await _mediator.Send(new GetLearnerClipsQuery(userId, count, ClipClassifier.ParseFilter(categories)), cancellationToken);
+            var clips = await _mediator.Send(new GetLearnerClipsQuery(userId, count), cancellationToken);
             return Ok(ApiResponse<List<LearnerClipDto>>.Ok(clips));
         }
 
