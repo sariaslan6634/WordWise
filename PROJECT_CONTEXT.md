@@ -111,6 +111,7 @@ The 480p QC change, dark theme, volume/replay UI, Wiktionary importer and pronun
 ## Silinenler (24 saat geri alma) ve bildirimler
 - Kelime defterinden çıkarılan kelime soft-delete olur; silme anı `UserWord.UpdatedAt` (migration yok). `GET api/UserWord/removed` son 24 saatte çıkarılanları döner (`GetRemovedWordsQuery`, `RemovedAt/ExpiresAt`). Süresi dolan kelime listeden kendiliğinden düşer (satır DB'de kalır; yeniden kaydedilirse eski satır geri gelir).
 - Geri al = mevcut `POST api/UserWord/{wordId}` (SaveWordCommand silinmiş satırı geri getirir).
-- Frontend: `app/learn/words/removed-words.tsx` ("Silinenler" bölümü, kalan süre, Geri al), `components/notification-bell.tsx` (üst çubukta zil; silinmesine ≤3 saat kalanlar için bildirim, 60 sn'de bir yoklar, okundu bilgisi localStorage `wordwise-dismissed-notifications`), `lib/removal-time.ts`.
+- Frontend: `app/learn/words/removed-words.tsx` ("Silinen kelimeler" butonu + modal, kalan süre, Geri al), `components/notification-bell.tsx` (üst çubukta zil; silinmesine ≤3 saat kalanlar için bildirim, 60 sn'de bir yoklar, okundu bilgisi localStorage `wordwise-dismissed-notifications`), `lib/removal-time.ts`.
 - Bildirimler sunucuda saklanmaz; "removed" listesinden hesaplanır (e-posta/push yok).
 - Test: `SavedWordTests.Removed_words_are_listed_for_24_hours_and_can_be_restored` (derlenmedi/çalıştırılmadı).
+- Navbar (`app/learn/layout.tsx`): Öğrenme alanım · Shadowing (eski "Klipler") · Kelime defterim · Tekrar yap; "Vitrin" linki kaldırıldı, "Tekrar yap" butonu defter sayfasından navbar'a taşındı (tür filtresi artık tekrar linkine geçmiyor).

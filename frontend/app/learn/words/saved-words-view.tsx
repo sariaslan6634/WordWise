@@ -15,7 +15,6 @@ export default function SavedWordsView({ words, totalCount, removed }: { words: 
     [words],
   );
   const visible = pos ? words.filter((word) => word.partOfSpeech === pos) : words;
-  const reviewHref = pos ? `/learn/words/review?pos=${encodeURIComponent(pos)}` : "/learn/words/review";
 
   return <>
     <div className="learn-panel-heading">
@@ -31,7 +30,6 @@ export default function SavedWordsView({ words, totalCount, removed }: { words: 
           {partsOfSpeech.map((value) => <option key={value} value={value}>{value}</option>)}
         </select>
       </label>
-      <Link className="button learn-review-button" href={reviewHref} aria-disabled={visible.length === 0}>↻ Tekrar yap</Link>
     </div>}
 
     {words.length === 0 && <p className="learn-empty">Henüz kaydedilmiş kelime yok. Bir kelime sayfasında “Kaydet” butonuna bas.</p>}
