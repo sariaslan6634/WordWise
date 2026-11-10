@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import SaveWordButton from "@/components/save-word-button";
-import type { SavedWord } from "@/lib/contracts";
+import RemovedWords from "./removed-words";
+import type { RemovedWord, SavedWord } from "@/lib/contracts";
 
-export default function SavedWordsView({ words, totalCount }: { words: SavedWord[]; totalCount: number }) {
+export default function SavedWordsView({ words, totalCount, removed }: { words: SavedWord[]; totalCount: number; removed: RemovedWord[] }) {
   const [pos, setPos] = useState("");
 
   // Filtre seçenekleri kullanıcının kendi kelimelerindeki türlerden çıkar (noun, verb...).
@@ -43,5 +44,7 @@ export default function SavedWordsView({ words, totalCount }: { words: SavedWord
       {word.exampleSentence && <blockquote className="learn-example">“{word.exampleSentence}”</blockquote>}
       {word.personalNote && <small className="learn-note">Not: {word.personalNote}</small>}
     </article>)}</div>}
+
+    <RemovedWords items={removed}/>
   </>;
 }

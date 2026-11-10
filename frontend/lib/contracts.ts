@@ -154,6 +154,15 @@ export interface SavedWord {
   savedAt: string;
 }
 
+export interface RemovedWord {
+  wordId: string;
+  text: string;
+  definition: string;
+  partOfSpeech: string | null;
+  removedAt: string;
+  expiresAt: string;
+}
+
 export interface ReviewWord {
   userWordId: string;
   wordId: string;

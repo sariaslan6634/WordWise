@@ -9,6 +9,7 @@ using WordWise.Application.Features.UserWords.Commands.SaveWord;
 using WordWise.Application.Features.UserWords.Commands.UnsaveWord;
 using WordWise.Application.Features.UserWords.Commands.UpdatePersonalNote;
 using WordWise.Application.Features.UserWords.Dtos;
+using WordWise.Application.Features.UserWords.Queries.GetRemovedWords;
 using WordWise.Application.Features.UserWords.Queries.GetReviewWords;
 using WordWise.Application.Features.UserWords.Queries.GetSavedWords;
 
@@ -34,6 +35,15 @@ namespace WordWise.WebAPI.Controllers
                 cancellationToken);
 
             return Ok(ApiResponse<PagedResponse<SavedWordDto>>.Ok(result));
+        }
+
+        /// <summary>Son 24 saatte defterden çıkarılan kelimeler (geri alınabilir).</summary>
+        [HttpGet("removed")]
+        [ProducesResponseType(typeof(ApiResponse<List<RemovedWordDto>>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetRemovedWords(CancellationToken cancellationToken)
+        {
+            var result = await _mediator.Send(new GetRemovedWordsQuery(CurrentUserId), cancellationToken);
+            return Ok(ApiResponse<List<RemovedWordDto>>.Ok(result));
         }
 
         [HttpGet("review")]

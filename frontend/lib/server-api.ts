@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { ReviewWord, LearnerClip, VideoClip, AdminUser, ApiEnvelope, AuthResponse, DashboardStats, PagedResponse, PendingContent, SavedWord, UserProfile, VideoCandidate, VideoCandidateReview, WordDetail, WordSummary } from "./contracts";
+import type { ReviewWord, LearnerClip, VideoClip, AdminUser, ApiEnvelope, AuthResponse, DashboardStats, PagedResponse, PendingContent, RemovedWord, SavedWord, UserProfile, VideoCandidate, VideoCandidateReview, WordDetail, WordSummary } from "./contracts";
 
 export const apiBaseUrl = (process.env.WORDWISE_API_URL || "http://localhost:5271").replace(/\/$/, "");
 
@@ -85,4 +85,8 @@ export async function getReviewWords(token?: string, options: { includeNotDue?: 
 
 export async function getSavedWords(token?: string, pageSize = 5) {
   return apiRequest<PagedResponse<SavedWord>>(`/api/UserWord?page=1&pageSize=${pageSize}`, token);
+}
+
+export async function getRemovedWords(token?: string) {
+  return apiRequest<RemovedWord[]>("/api/UserWord/removed", token);
 }
