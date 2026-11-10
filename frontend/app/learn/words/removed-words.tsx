@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import type { RemovedWord } from "@/lib/contracts";
 import { timeLeft } from "@/lib/removal-time";
 
-/** Defterden çıkarılan kelimeler: çıkarılma saati, kalan süre ve "Geri al". Süresi dolan kelime tek tek listeden düşer. */
+/** "Silinen kelimeler" butonu + açılır pencere. Defterden çıkarılan kelimeler: çıkarılma saati, kalan süre ve "Geri al". Süresi dolan kelime tek tek listeden düşer. */
 export default function RemovedWords({ items }: { items: RemovedWord[] }) {
   const router = useRouter();
   const [now, setNow] = useState(() => Date.now());
@@ -18,8 +18,16 @@ export default function RemovedWords({ items }: { items: RemovedWord[] }) {
     return () => clearInterval(timer);
   }, []);
 
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
+
   const visible = items.filter((item) => timeLeft(item.expiresAt, now) !== null);
-  if (visible.length === 0) return null;
 
   async function undo(wordId: string) {
     setBusyId(wordId);
@@ -36,13 +44,19 @@ export default function RemovedWords({ items }: { items: RemovedWord[] }) {
   }
 
   const time = new Intl.DateTimeFormat("tr-TR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
-  return <section className="removed-words" aria-label="Silinen kelimeler">
-    <div className="removed-head"><h2>Silinenler</h2><p>Çıkardığın kelimeler 24 saat burada bekler; süresi dolan kelime listeden kalkar.</p></div>
-    {error && <div className="learn-alert" role="alert">{error}</div>}
-    <ul>{visible.map((item) => <li key={item.wordId}>
-      <div className="removed-main"><Link href={`/learn/word/${encodeURIComponent(item.text)}`}>{item.text}</Link><span>{item.partOfSpeech || "Kelime"}</span></div>
-      <small>Çıkarıldı: {time.format(new Date(item.removedAt))} · Silinmesine <strong>{timeLeft(item.expiresAt, now)}</strong> kaldı</small>
-      <button type="button" className="button removed-undo" onClick={() => undo(item.wordId)} disabled={busyId === item.wordId}>↶ Geri al</button>
-    </li>)}</ul>
-  </section>;
+  return <>
+    <button type="button" className="button removed-open" onClick={() => setOpen(true)}>🗑 Silinen kelimeler{visible.length > 0 ? ` (${visible.length})` : ""}</button>
+    {open && <div className="removed-overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
+      <section className="removed-words removed-modal" role="dialog" aria-modal="true" aria-label="Silinen kelimeler">
+        <div className="removed-head"><div><h2>Silinen kelimeler</h2><p>Çıkardığın kelimeler 24 saat burada bekler; süresi dolan kelime listeden kalkar.</p></div><button type="button" className="removed-close" onClick={() => setOpen(false)} aria-label="Kapat">✕</button></div>
+        {error && <div className="learn-alert" role="alert">{error}</div>}
+        {visible.length === 0 && <p className="learn-empty">Silinmiş kelime yok.</p>}
+        <ul>{visible.map((item) => <li key={item.wordId}>
+          <div className="removed-main"><Link href={`/learn/word/${encodeURIComponent(item.text)}`}>{item.text}</Link><span>{item.partOfSpeech || "Kelime"}</span></div>
+          <small>Çıkarıldı: {time.format(new Date(item.removedAt))} · Silinmesine <strong>{timeLeft(item.expiresAt, now)}</strong> kaldı</small>
+          <button type="button" className="button removed-undo" onClick={() => undo(item.wordId)} disabled={busyId === item.wordId}>↶ Geri al</button>
+        </li>)}</ul>
+      </section>
+    </div>}
+  </>;
 }

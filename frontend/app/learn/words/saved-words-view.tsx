@@ -20,7 +20,7 @@ export default function SavedWordsView({ words, totalCount, removed }: { words: 
   return <>
     <div className="learn-panel-heading">
       <div><span className="panel-kicker">KİŞİSEL KÜTÜPHANE</span><h1>Kelime defterim</h1><p>Kaydettiğin kelimeler ve tekrar durumları.</p></div>
-      <span className="learn-count">{pos ? `${visible.length} / ` : ""}{totalCount} kelime</span>
+      <div className="learn-heading-side"><span className="learn-count">{pos ? `${visible.length} / ` : ""}{totalCount} kelime</span><RemovedWords items={removed}/></div>
     </div>
 
     {words.length > 0 && <div className="learn-words-toolbar">
@@ -44,7 +44,5 @@ export default function SavedWordsView({ words, totalCount, removed }: { words: 
       {word.exampleSentence && <blockquote className="learn-example">“{word.exampleSentence}”</blockquote>}
       {word.personalNote && <small className="learn-note">Not: {word.personalNote}</small>}
     </article>)}</div>}
-
-    <RemovedWords items={removed}/>
   </>;
 }
