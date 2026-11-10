@@ -15,7 +15,7 @@ export default async function LearnLayout({ children }: { children: ReactNode })
   return <div className="learn-shell">
     <header className="learn-header wrap">
       <Link className="brand" href="/"><span className="brand-mark">w.</span><span>wordwise</span></Link>
-      <nav aria-label="Öğrenme menüsü"><Link href="/learn">Öğrenme alanım</Link><Link href="/learn/clips">Shadowing</Link><Link href="/learn/words">Kelime defterim</Link><Link href="/learn/words/review">Tekrar yap</Link></nav>
+      <nav aria-label="Öğrenme menüsü"><Link href="/learn">Öğrenme Alanı</Link><Link href="/learn/words">Kelime Defteri</Link><Link href="/learn/clips">Listening</Link><Link href="/learn/writing">Writing</Link><Link href="/learn/words/review">Tekrar Yap</Link></nav>
       <div className="learn-account"><NotificationBell/><span>{user.name}</span><LogoutButton signedIn/></div>
     </header>
     <main className="learn-content wrap">{children}</main>

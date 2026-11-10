@@ -114,4 +114,4 @@ The 480p QC change, dark theme, volume/replay UI, Wiktionary importer and pronun
 - Frontend: `app/learn/words/removed-words.tsx` ("Silinen kelimeler" butonu + modal, kalan süre, Geri al), `components/notification-bell.tsx` (üst çubukta zil; silinmesine ≤3 saat kalanlar için bildirim, 60 sn'de bir yoklar, okundu bilgisi localStorage `wordwise-dismissed-notifications`), `lib/removal-time.ts`.
 - Bildirimler sunucuda saklanmaz; "removed" listesinden hesaplanır (e-posta/push yok).
 - Test: `SavedWordTests.Removed_words_are_listed_for_24_hours_and_can_be_restored` (derlenmedi/çalıştırılmadı).
-- Navbar (`app/learn/layout.tsx`): Öğrenme alanım · Shadowing (eski "Klipler") · Kelime defterim · Tekrar yap; "Vitrin" linki kaldırıldı, "Tekrar yap" butonu defter sayfasından navbar'a taşındı (tür filtresi artık tekrar linkine geçmiyor).
+- Navbar (`app/learn/layout.tsx`): Öğrenme Alanı · Kelime Defteri · Listening · Writing (yer tutucu sayfa `/learn/writing`) · Tekrar Yap (eski sıra değişti) (eski "Klipler") · Kelime defterim · Tekrar yap; "Vitrin" linki kaldırıldı, "Tekrar yap" butonu defter sayfasından navbar'a taşındı (tür filtresi artık tekrar linkine geçmiyor).
