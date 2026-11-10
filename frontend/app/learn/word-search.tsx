@@ -84,7 +84,6 @@ export default function WordSearch() {
           {items.map((item, index) => <li key={item.text} id={`suggestion-${index}`} role="option" aria-selected={index === active}>
             <button type="button" tabIndex={-1} className={index === active ? "is-active" : ""} onMouseDown={(event) => event.preventDefault()} onClick={() => go(item.text)}>
               <b>{item.text.slice(0, text.trim().length)}</b>{item.text.slice(text.trim().length)}
-              {item.partOfSpeech && <small>{item.partOfSpeech}</small>}
             </button>
           </li>)}
         </ul>}
