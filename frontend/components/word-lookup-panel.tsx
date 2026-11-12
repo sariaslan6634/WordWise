@@ -16,6 +16,7 @@ type State = { status: "loading" } | { status: "found"; word: WordDetail } | { s
 /** `playKey` her tıklamada artar: aynı kelimeye tekrar tıklanınca da kelime yeniden okunur. */
 export default function WordLookupPanel({ word, playKey, onClose }: { word: string; playKey: number; onClose: () => void }) {
   const [state, setState] = useState<State>({ status: "loading" });
+  const [silent, setSilent] = useState(false); // hiçbir kaynaktan ses bulunamadı
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
 
@@ -77,13 +78,14 @@ export default function WordLookupPanel({ word, playKey, onClose }: { word: stri
   /** Okuma sırası: kelimenin kendi kaydı → İngilizce sesli okuma → ana biçimin kaydı (challenges yoksa challenge). */
   const speak = useCallback(async (text: string) => {
     stopSpeaking();
+    setSilent(false);
     const run = runRef.current;
     if (await playRecording(text, run)) return;
     if (run !== runRef.current) return;
     if (await speakWithEnglishVoice(text, run)) return;
     if (run !== runRef.current) return;
     const base = baseRef.current;
-    if (base) await playRecording(base, run);
+    if (base) { if (!(await playRecording(base, run)) && run === runRef.current) setSilent(true); }
     else pendingBaseRef.current = run; // anlam gelince ana biçimin kaydı çalınır
   }, [stopSpeaking, playRecording, speakWithEnglishVoice]);
 
@@ -106,10 +108,13 @@ export default function WordLookupPanel({ word, playKey, onClose }: { word: stri
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const body = (await response.json()) as { data?: WordDetail };
         setState(body.data ? { status: "found", word: body.data } : { status: "missing" });
-        if (body.data && body.data.text.toLowerCase() !== word.toLowerCase()) {
+        if (body.data && body.data.text.toLowerCase() === word.toLowerCase() && pendingBaseRef.current !== 0 && pendingBaseRef.current === runRef.current) {
+          pendingBaseRef.current = 0;
+          setSilent(true); // kelimenin kendisi zaten ana biçim: çalacak başka kayıt yok
+        } else if (body.data && body.data.text.toLowerCase() !== word.toLowerCase()) {
           baseRef.current = body.data.text;
           const run = pendingBaseRef.current;
-          if (run !== 0 && run === runRef.current) { pendingBaseRef.current = 0; void playRecording(body.data.text, run); }
+          if (run !== 0 && run === runRef.current) { pendingBaseRef.current = 0; void playRecording(body.data.text, run).then((ok) => { if (!ok && run === runRef.current) setSilent(true); }); }
         }
       } catch (value) {
         if ((value as { name?: string })?.name !== "AbortError") setState({ status: "error", detail: value instanceof Error ? value.message : "" });
@@ -145,6 +150,7 @@ export default function WordLookupPanel({ word, playKey, onClose }: { word: stri
       {found && <SaveWordButton key={found.id} wordId={found.id} initialSaved={found.isSaved === true} compact iconOnly/>}
     </div>
 
+    {silent && <p className="word-panel-note">Bu kelime için ses kaydı bulunamadı.</p>}
     {state.status === "loading" && <p className="word-panel-note" role="status">Anlamı getiriliyor…</p>}
     {state.status === "missing" && <p className="word-panel-note">Bu kelime sözlüğümüzde bulunamadı.</p>}
     {state.status === "error" && <p className="word-panel-note" role="alert">Anlam alınamadı{state.detail ? ` (${state.detail})` : ""}. Bağlantını kontrol edip tekrar dene.</p>}

@@ -8,5 +8,9 @@ namespace WordWise.Application.Common.Interfaces
         IReadOnlyList<string> GetAccents(string word);
 
         WordAudioEntry? Find(string word, string accent);
+
+        /// <summary>Yerel klasörde yoksa kaydı Wikimedia Commons'tan indirip klasöre önbellekler. Bulunamazsa null.</summary>
+        Task<WordAudioEntry?> FindOrFetchAsync(string word, string accent, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Find(word, accent));
     }
 }

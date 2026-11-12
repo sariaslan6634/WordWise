@@ -55,4 +55,17 @@ public class WordAudioIndexTests
         Assert.Empty(index.AccentsFor("beautiful"));
         Assert.Null(index.Find("augment", "us"));
     }
+
+    [Fact]
+    public void Entries_added_later_are_found_and_do_not_replace_a_better_file()
+    {
+        var index = WordAudioIndex.Build(new[] { @"D:\audio\En-us-beautiful.ogg.mp3" });
+        Assert.Empty(index.AccentsFor("did"));
+
+        index.Add(WordAudioIndex.Parse(@"D:\audio\fetched\En-us-did.ogg")!);
+        Assert.Equal(new[] { "us" }, index.AccentsFor("did"));
+
+        index.Add(WordAudioIndex.Parse(@"D:\audio\fetched\En-us-beautiful.ogg")!);
+        Assert.EndsWith(".mp3", index.Find("beautiful", "us")!.Path); // mp3 daha iyi sırada kalır
+    }
 }

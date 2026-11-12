@@ -19,7 +19,7 @@ namespace WordWise.Application.Features.WordAudio
         private static readonly Regex PosSuffixRegex = new(@"-(noun|verb|adjective|adj|adverb|adv|preposition|pronoun)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly string[] Extensions = { ".mp3", ".ogg", ".oga" };
 
-        private readonly Dictionary<(string Word, string Accent), WordAudioEntry> _entries = new();
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<(string Word, string Accent), WordAudioEntry> _entries = new();
 
         public int Count => _entries.Count;
 
@@ -66,6 +66,12 @@ namespace WordWise.Application.Features.WordAudio
             var formatRank = ext == ".mp3" ? 0 : ext == ".ogg" ? 1 : 2;
             var contentType = ext == ".mp3" ? "audio/mpeg" : "audio/ogg";
             return new WordAudioEntry(rest, accent, path, contentType, variant * 10 + formatRank);
+        }
+
+        /// <summary>Çalışma sırasında indirilen yeni bir dosyayı dizine ekler (var olan daha iyi kayıt korunur).</summary>
+        public void Add(WordAudioEntry entry)
+        {
+            _entries.AddOrUpdate((entry.Word, entry.Accent), entry, (_, existing) => entry.Rank < existing.Rank ? entry : existing);
         }
 
         public WordAudioEntry? Find(string word, string accent) =>
