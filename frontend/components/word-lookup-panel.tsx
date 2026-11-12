@@ -4,15 +4,17 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import PronunciationButton from "@/components/pronunciation-button";
 import SaveWordButton from "@/components/save-word-button";
+import { cefrLabel } from "@/lib/cefr";
 import type { WordDetail } from "@/lib/contracts";
 
-type State = { status: "loading" } | { status: "found"; word: WordDetail } | { status: "missing" } | { status: "error" };
+type State = { status: "loading" } | { status: "found"; word: WordDetail } | { status: "missing" } | { status: "error"; detail: string };
 
 /**
  * Altyazıda tıklanan kelimenin anlamını sağda açılan pencerede gösterir ve kelimeyi bir kez okur.
  * Okuma sırası: Amerikan kaydı → İngiliz kaydı → tarayıcının sesli okuması. Kapatınca (ya da kelime değişince) ses durur.
  */
-export default function WordLookupPanel({ word, onClose }: { word: string; onClose: () => void }) {
+/** `playKey` her tıklamada artar: aynı kelimeye tekrar tıklanınca da kelime yeniden okunur. */
+export default function WordLookupPanel({ word, playKey, onClose }: { word: string; playKey: number; onClose: () => void }) {
   const [state, setState] = useState<State>({ status: "loading" });
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -46,24 +48,29 @@ export default function WordLookupPanel({ word, onClose }: { word: string; onClo
     tryAccent(["us", "gb"]);
   }, [stopSpeaking]);
 
-  // Kelime değişince: bir kez oku ve anlamını getir.
+  // Her tıklamada kelimeyi oku (aynı kelimeye tekrar tıklayınca da).
+  useEffect(() => {
+    speak(word);
+    return stopSpeaking;
+  }, [word, playKey, speak, stopSpeaking]);
+
+  // Kelime değişince anlamını getir.
   useEffect(() => {
     const controller = new AbortController();
     setState({ status: "loading" });
-    speak(word);
     (async () => {
       try {
         const response = await fetch(`/api/backend/api/Words/lookup?text=${encodeURIComponent(word)}`, { signal: controller.signal, cache: "no-store" });
         if (response.status === 404) { setState({ status: "missing" }); return; }
-        if (!response.ok) throw new Error("failed");
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const body = (await response.json()) as { data?: WordDetail };
         setState(body.data ? { status: "found", word: body.data } : { status: "missing" });
       } catch (value) {
-        if ((value as { name?: string })?.name !== "AbortError") setState({ status: "error" });
+        if ((value as { name?: string })?.name !== "AbortError") setState({ status: "error", detail: value instanceof Error ? value.message : "" });
       }
     })();
-    return () => { controller.abort(); stopSpeaking(); };
-  }, [word, speak, stopSpeaking]);
+    return () => controller.abort();
+  }, [word]);
 
   useEffect(() => {
     closeRef.current?.focus();
@@ -88,17 +95,17 @@ export default function WordLookupPanel({ word, onClose }: { word: string; onClo
       {found && found.audioAccents && found.audioAccents.length > 0 && !baseForm
         ? <PronunciationButton word={found.text} accents={found.audioAccents}/>
         : <button type="button" className="button word-panel-listen" onClick={() => speak(word)}>🔊 Tekrar dinle</button>}
-      {found && <SaveWordButton wordId={found.id} initialSaved={found.isSaved === true} compact/>}
+      {found && <SaveWordButton key={found.id} wordId={found.id} initialSaved={found.isSaved === true} compact iconOnly/>}
     </div>
 
     {state.status === "loading" && <p className="word-panel-note" role="status">Anlamı getiriliyor…</p>}
     {state.status === "missing" && <p className="word-panel-note">Bu kelime sözlüğümüzde bulunamadı.</p>}
-    {state.status === "error" && <p className="word-panel-note" role="alert">Anlam alınamadı. Bağlantını kontrol edip tekrar dene.</p>}
+    {state.status === "error" && <p className="word-panel-note" role="alert">Anlam alınamadı{state.detail ? ` (${state.detail})` : ""}. Bağlantını kontrol edip tekrar dene.</p>}
 
     {found && <div className="word-panel-body">
       <div className="word-panel-meta">
         {found.partOfSpeech && <span>{found.partOfSpeech}</span>}
-        {found.cefrLevel && <span>{found.cefrLevel}</span>}
+        {found.cefrLevel && <span>{cefrLabel(found.cefrLevel)}</span>}
         {found.ipa && <span className="word-panel-ipa">{found.ipa}</span>}
       </div>
       <p className="word-panel-def">{found.definition}</p>
@@ -106,6 +113,5 @@ export default function WordLookupPanel({ word, onClose }: { word: string; onClo
       {found.synonyms.length > 0 && <div className="word-panel-block"><h3>Eş anlamlılar</h3><p>{found.synonyms.slice(0, 6).join(", ")}</p></div>}
       <Link className="word-panel-link" href={`/learn/word/${encodeURIComponent(found.text)}`} target="_blank">Kelime sayfasını aç ↗</Link>
     </div>}
-    <p className="word-panel-hint">Kapatınca video kaldığı yerden devam eder.</p>
   </aside>;
 }

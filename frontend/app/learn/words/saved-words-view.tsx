@@ -1,5 +1,6 @@
 "use client";
 
+import { cefrLabel } from "@/lib/cefr";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import SaveWordButton from "@/components/save-word-button";
@@ -35,7 +36,7 @@ export default function SavedWordsView({ words, totalCount, removed }: { words: 
     {words.length === 0 && <p className="learn-empty">Henüz kaydedilmiş kelime yok. Bir kelime sayfasında “Kaydet” butonuna bas.</p>}
     {words.length > 0 && visible.length === 0 && <p className="learn-empty">Bu türde kayıtlı kelimen yok.</p>}
     {visible.length > 0 && <div className="learn-word-list has-actions">{visible.map((word) => <article key={word.id}>
-      <div><h2><Link href={`/learn/word/${encodeURIComponent(word.text)}`}>{word.text}</Link></h2><span>{word.cefrLevel || "Seviye belirtilmemiş"} · {word.partOfSpeech || "Kelime"}</span></div>
+      <div><h2><Link href={`/learn/word/${encodeURIComponent(word.text)}`}>{word.text}</Link></h2><span>{cefrLabel(word.cefrLevel) || "Seviye belirtilmemiş"} · {word.partOfSpeech || "Kelime"}</span></div>
       <p>{word.definition}</p>
       <div className="learn-word-meta"><span>Öğrenme seviyesi {word.knownLevel}/5</span><span>{word.reviewCount} tekrar</span></div>
       <div className="learn-word-actions"><SaveWordButton wordId={word.wordId} initialSaved compact/></div>

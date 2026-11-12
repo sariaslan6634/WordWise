@@ -70,7 +70,7 @@ export default function ClipPractice({ initialClips, initialSavedOnly = false }:
   const [reporting, setReporting] = useState(false);
   const [error, setError] = useState("");
   const [loadingMore, setLoadingMore] = useState(false);
-  const [lookupWord, setLookupWord] = useState<string | null>(null);
+  const [lookup, setLookup] = useState<{ word: string; n: number } | null>(null);
   const [savedOnly, setSavedOnly] = useState(initialSavedOnly);
   const [savingClip, setSavingClip] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -84,13 +84,13 @@ export default function ClipPractice({ initialClips, initialSavedOnly = false }:
 
   // Klip değişince açık kelime penceresini kapat.
   const clipId = clip?.id;
-  useEffect(() => { setLookupWord(null); }, [clipId]);
+  useEffect(() => { setLookup(null); }, [clipId]);
 
-  const closeLookup = useCallback(() => setLookupWord(null), []);
+  const closeLookup = useCallback(() => setLookup(null), []);
   function openLookup(word: string) {
     clearTimer(); // otomatik geçiş sayacı varsa iptal et
     setHasInteracted(true);
-    setLookupWord(word);
+    setLookup((current) => ({ word, n: (current?.n ?? 0) + 1 }));
   }
 
   function update(patch: Partial<Settings>) {
@@ -253,7 +253,7 @@ export default function ClipPractice({ initialClips, initialSavedOnly = false }:
           words={clip.words.length > 0 ? clip.words : undefined}
           loops={loop ? LOOP_COUNT : 1}
           autoPlay={hasInteracted || index > 0}
-          paused={reportOpen || lookupWord !== null}
+          paused={reportOpen || lookup !== null}
           showCaption={captions && !clip.hasBurnedInCaptions}
           sync={sync}
           onFinished={handleFinished}
@@ -279,7 +279,7 @@ export default function ClipPractice({ initialClips, initialSavedOnly = false }:
       </div>
     </>}
 
-    {lookupWord && clip && <WordLookupPanel word={lookupWord} onClose={closeLookup}/>}
+    {lookup && clip && <WordLookupPanel word={lookup.word} playKey={lookup.n} onClose={closeLookup}/>}
 
     {reportOpen && clip && <div className="cinema-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) closeReport(); }}>
       <div className="cinema-modal" role="dialog" aria-modal="true" aria-labelledby="report-title" tabIndex={-1} ref={modalRef}>

@@ -1,3 +1,4 @@
+import { cefrLabel } from "@/lib/cefr";
 import Link from "next/link";
 import { getSavedWords, getUserProfile } from "@/lib/server-api";
 import { getSession } from "@/lib/session";
@@ -25,7 +26,7 @@ export default async function LearnHomePage() {
       <div className="learn-panel-heading"><div><span className="panel-kicker">KELİME DEFTERİM</span><h2>Son kaydettiklerin</h2></div><Link href="/learn/words">Tümünü gör →</Link></div>
       {!saved && <p className="learn-empty">Kaydedilen kelimeler API’den alınamadı.</p>}
       {saved?.items.length === 0 && <p className="learn-empty">Henüz kelime kaydetmedin. Yeni kelimeler keşfetmek için <Link href="/">vitrine göz at.</Link></p>}
-      {saved && saved.items.length > 0 && <div className="learn-word-list">{saved.items.map((word) => <article key={word.id}><div><h3>{word.text}</h3><span>{word.cefrLevel || "Seviye belirtilmemiş"} · {word.partOfSpeech || "Kelime"}</span></div><p>{word.definition}</p><span className="learn-level">Seviye {word.knownLevel}/5</span></article>)}</div>}
+      {saved && saved.items.length > 0 && <div className="learn-word-list">{saved.items.map((word) => <article key={word.id}><div><h3>{word.text}</h3><span>{cefrLabel(word.cefrLevel) || "Seviye belirtilmemiş"} · {word.partOfSpeech || "Kelime"}</span></div><p>{word.definition}</p><span className="learn-level">Seviye {word.knownLevel}/5</span></article>)}</div>}
     </section>
   </>;
 }
