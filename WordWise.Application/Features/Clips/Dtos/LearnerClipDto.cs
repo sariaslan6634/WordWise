@@ -18,7 +18,6 @@ namespace WordWise.Application.Features.Clips.Dtos
         /// <summary>Kaynak video bilgileri (altında gösterilir). Eski kliplerde kanal/açıklama boş olabilir.</summary>
         public string? SourceTitle { get; set; }
         public string? SourceChannel { get; set; }
-        public string? SourceDescription { get; set; }
 
         /// <summary>Kullanıcı bu klibi kaydetmiş mi?</summary>
         public bool IsSaved { get; set; }
@@ -39,7 +38,6 @@ namespace WordWise.Application.Features.Clips.Dtos
             HasBurnedInCaptions = c.HasBurnedInCaptions,
             SourceTitle = c.SourceTitle,
             SourceChannel = c.SourceChannel,
-            SourceDescription = c.SourceDescription,
             IsSaved = isSaved,
             SavedAt = savedAt,
             Words = System.Text.Json.JsonSerializer.Deserialize<List<CaptionWord>>(c.WordTimingsJson, VideoClipMapper.JsonOptions) ?? new(),

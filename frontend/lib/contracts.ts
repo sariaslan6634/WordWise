@@ -106,7 +106,6 @@ export interface LearnerClip {
   hasBurnedInCaptions: boolean;
   sourceTitle?: string | null;
   sourceChannel?: string | null;
-  sourceDescription?: string | null;
   isSaved?: boolean;
   savedAt?: string | null;
 }

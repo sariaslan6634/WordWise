@@ -21,7 +21,6 @@ namespace WordWise.Infrastructure.Persistence.Configuyrations
 
             builder.Property(x => x.SourceTitle).HasMaxLength(500).IsRequired(false);
             builder.Property(x => x.SourceChannel).HasMaxLength(200).IsRequired(false);
-            builder.Property(x => x.SourceDescription).HasMaxLength(1000).IsRequired(false);
 
             builder.Property(x => x.IsPublished).IsRequired().HasDefaultValue(false);
             builder.Property(x => x.IsRejected).IsRequired().HasDefaultValue(false);

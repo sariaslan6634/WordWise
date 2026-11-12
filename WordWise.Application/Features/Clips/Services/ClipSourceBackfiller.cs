@@ -25,7 +25,7 @@ namespace WordWise.Application.Features.Clips.Services
                 {
                     var details = await _details.GetSnippetAsync(group.Key, cancellationToken);
                     if (details is not null && !string.IsNullOrWhiteSpace(details.ChannelTitle))
-                        info = new VideoDetailsLite(Trim(details.Title, 500), Trim(details.ChannelTitle, 200), Trim(details.Description, 1000));
+                        info = new VideoDetailsLite(Trim(details.Title, 500), Trim(details.ChannelTitle, 200));
                 }
                 catch (Exception) { /* YouTube'a ulaşılamadı: sonraki istekte tekrar denenir */ }
                 if (info is null) continue;
@@ -33,7 +33,6 @@ namespace WordWise.Application.Features.Clips.Services
                 foreach (var dto in group)
                 {
                     dto.SourceChannel = info.Channel;
-                    dto.SourceDescription ??= info.Description;
                     dto.SourceTitle ??= info.Title;
                 }
 
@@ -41,7 +40,6 @@ namespace WordWise.Application.Features.Clips.Services
                 foreach (var row in rows)
                 {
                     row.SourceChannel ??= info.Channel;
-                    row.SourceDescription ??= info.Description;
                     row.SourceTitle ??= info.Title;
                 }
                 await _context.SaveChangesAsync(cancellationToken);
@@ -55,6 +53,6 @@ namespace WordWise.Application.Features.Clips.Services
             return value.Length > max ? value[..max] : value;
         }
 
-        private sealed record VideoDetailsLite(string? Title, string? Channel, string? Description);
+        private sealed record VideoDetailsLite(string? Title, string? Channel);
     }
 }

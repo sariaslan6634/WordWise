@@ -70,7 +70,6 @@ namespace WordWise.Application.Features.Clips.Services
                     YoutubeId = youtubeId,
                     SourceTitle = details.Title.Length > 500 ? details.Title[..500] : details.Title,
                     SourceChannel = Truncate(details.ChannelTitle, 200),
-                    SourceDescription = Truncate(details.Description, 1000),
                     StartSec = clip.Start,
                     EndSec = clip.End,
                     Text = clip.Text,

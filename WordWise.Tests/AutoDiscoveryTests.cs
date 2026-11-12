@@ -109,6 +109,5 @@ public class AutoDiscoveryTests
         var clips = await context.VideoClips.ToListAsync();
         Assert.All(clips, c => Assert.False(c.IsPublished));
         Assert.All(clips, c => Assert.Equal("Channel", c.SourceChannel));
-        Assert.All(clips, c => Assert.Equal("Nothing special", c.SourceDescription));
     }
 }
