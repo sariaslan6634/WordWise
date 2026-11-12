@@ -125,6 +125,6 @@ The 480p QC change, dark theme, volume/replay UI, Wiktionary importer and pronun
 - Derlenmedi/çalıştırılmadı: yeni testler `LearnerClipTests` (kaydetme), `AutoDiscoveryTests` (gerçek zaman şartı).
 
 ## Tıklanabilir altyazı (kelime anlamı paneli)
-- Listening'de altyazı kelimeleri tıklanabilir (`SyncedCaptionPlayer` `onWordClick`). Altyazının üstüne gelince video durur, imleç çekilince devam eder; tıklayınca video durmaya devam eder, sağda `components/word-lookup-panel.tsx` açılır, kelime bir kez okunur (WordAudio US → GB → tarayıcı `speechSynthesis`). Panel kapanınca video kaldığı yerden devam eder. Tam ekranda tıklanırsa önce tam ekrandan çıkılır.
+- Listening'de altyazı kelimeleri tıklanabilir (`SyncedCaptionPlayer` `onWordClick`). Altyazının üstüne gelince video durur, imleç çekilince devam eder; tıklayınca video durmaya devam eder, sağda `components/word-lookup-panel.tsx` açılır, kelime bir kez okunur (kelimenin WordAudio US → GB kaydı → tarayıcının İngilizce sesi (Türkçe sesle okumaz) → ana biçimin kaydı, örn. challenges → challenge). Panel kapanınca video kaldığı yerden devam eder. Tam ekranda tıklanırsa önce tam ekrandan çıkılır.
 - Backend: `GET api/Words/lookup?text=` — `WordForms.Candidates` ile (giving→give, cities→city, don't→do...) sözlükte sırayla arar (`GetWordByTextQuery`), bulamazsa 404. Test: `WordFormsTests`.
 - Panel: anlam, tür, CEFR, IPA, örnekler, eş anlamlılar, Kaydet, "Kelime sayfasını aç". Derlenmedi/çalıştırılmadı.
