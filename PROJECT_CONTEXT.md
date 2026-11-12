@@ -123,3 +123,8 @@ The 480p QC change, dark theme, volume/replay UI, Wiktionary importer and pronun
 - Zamanlama: `AutoDiscovery:AutoPublishRequiresRealTimings` (varsayılan true) — kelime zamanları tahmini olan klipler otomatik yayınlanmaz (admin onayı bekler). Mevcut yayınlanmış tahmini klipleri kaldırmak için (isteğe bağlı): `UPDATE VideoClips SET IsPublished = 0 WHERE IsPublished = 1 AND QcWarnings LIKE N'%Kelime zamanları tahmin edildi%';`
 - Oynatıcı: Shorts/videonun sonundaki klipler "ended" vermeden başa sarabiliyor → `synced-caption-player.tsx` süre geri sarmasını (`wrapped`) ve video sonunu (`atVideoEnd`) yakalayıp klibi bitirir; oynatma klip başlangıcından önce başlarsa bir kez `seekTo(startSec)`.
 - Derlenmedi/çalıştırılmadı: yeni testler `LearnerClipTests` (kaydetme), `AutoDiscoveryTests` (gerçek zaman şartı).
+
+## Tıklanabilir altyazı (kelime anlamı paneli)
+- Listening'de altyazı kelimeleri tıklanabilir (`SyncedCaptionPlayer` `onWordClick`). Altyazının üstüne gelince video durur, imleç çekilince devam eder; tıklayınca video durmaya devam eder, sağda `components/word-lookup-panel.tsx` açılır, kelime bir kez okunur (WordAudio US → GB → tarayıcı `speechSynthesis`). Panel kapanınca video kaldığı yerden devam eder. Tam ekranda tıklanırsa önce tam ekrandan çıkılır.
+- Backend: `GET api/Words/lookup?text=` — `WordForms.Candidates` ile (giving→give, cities→city, don't→do...) sözlükte sırayla arar (`GetWordByTextQuery`), bulamazsa 404. Test: `WordFormsTests`.
+- Panel: anlam, tür, CEFR, IPA, örnekler, eş anlamlılar, Kaydet, "Kelime sayfasını aç". Derlenmedi/çalıştırılmadı.

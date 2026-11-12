@@ -80,6 +80,7 @@ export default function SyncedCaptionPlayer({
   paused = false,
   showCaption = true,
   sync = true,
+  onWordClick,
 }: {
   videoId: string;
   startSec: number;
@@ -102,6 +103,8 @@ export default function SyncedCaptionPlayer({
   showCaption?: boolean;
   /** true: kelimeler konuşuldukça vurgulanır (karaoke). false: cümle baştan tam görünür, vurgu yok. */
   sync?: boolean;
+  /** Verilirse altyazıdaki kelimeler tıklanabilir olur; üzerine gelince video durur, tıklayınca bu çağrılır. */
+  onWordClick?: (word: string) => void;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YtPlayer | null>(null);
@@ -149,11 +152,15 @@ export default function SyncedCaptionPlayer({
     applyVolume(muted || volume === 0 ? lastVolumeRef.current : 0);
   }
   const pausedByUsRef = useRef(false);
+  const pausedPropRef = useRef(paused);
+  const playingRef = useRef(false); // video şu an gerçekten oynuyor mu
+  const hoverPausedRef = useRef(false); // altyazının üstüne gelince biz durdurduk
   useEffect(() => {
+    pausedPropRef.current = paused;
     const player = playerRef.current;
     if (!player) return;
     try {
-      if (paused) { player.pauseVideo(); pausedByUsRef.current = true; }
+      if (paused) { player.pauseVideo(); pausedByUsRef.current = true; hoverPausedRef.current = false; }
       else if (pausedByUsRef.current) { pausedByUsRef.current = false; player.playVideo(); }
     } catch { /* oynatıcı henüz hazır değil */ }
   }, [paused]);
@@ -251,6 +258,7 @@ export default function SyncedCaptionPlayer({
           },
           onStateChange: (event) => {
             if (event.data === 0) handleEnd();
+            playingRef.current = event.data === 1;
             if (event.data === 1) { setStarted(true); setEnded(false); }
             // Klip bittikten sonra kullanıcı tekrar oynata bastı: sayaçları sıfırla, baştan oynasın.
             if (event.data === 1 && finishedRef.current) {
@@ -305,12 +313,39 @@ export default function SyncedCaptionPlayer({
     playerRef.current?.loadVideoById({ videoId, startSeconds: startSec, endSeconds: endSec });
   }
 
+  // Altyazının üstüne gelince video durur, çekilince (tıklama yoksa) devam eder.
+  function hoverPause() {
+    if (!onWordClick || !playingRef.current) return;
+    try { playerRef.current?.pauseVideo(); hoverPausedRef.current = true; } catch { /* oynatıcı hazır değil */ }
+  }
+  function hoverResume() {
+    if (!hoverPausedRef.current) return;
+    hoverPausedRef.current = false;
+    if (pausedPropRef.current) return; // tıklandı: pencere açık, video durmaya devam eder
+    try { playerRef.current?.playVideo(); } catch { /* oynatıcı hazır değil */ }
+  }
+  function clickWord(token: string) {
+    if (!onWordClick) return;
+    const clean = token.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "");
+    if (!clean) return;
+    if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined); // yan pencere tam ekranda görünmez
+    onWordClick(clean);
+  }
+
   const cinema = variant === "cinema";
+  const interactive = Boolean(onWordClick);
   const caption = (
-    <p className="scp-caption" aria-live="off">
-      <span className="scp-caption-inner">
+    <p className={`scp-caption${interactive ? " interactive" : ""}`} aria-live="off">
+      <span className="scp-caption-inner" onMouseEnter={interactive ? hoverPause : undefined} onMouseLeave={interactive ? hoverResume : undefined}>
         {captionWords.map((word, index) => (
-          <span key={`${word.text}-${index}`} className={`scp-word${sync ? (time >= word.start - lead ? " on" : "") : " static"}`}>
+          <span
+            key={`${word.text}-${index}`}
+            className={`scp-word${sync ? (time >= word.start - lead ? " on" : "") : " static"}`}
+            role={interactive ? "button" : undefined}
+            tabIndex={interactive ? 0 : undefined}
+            onClick={interactive ? () => clickWord(word.text) : undefined}
+            onKeyDown={interactive ? (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); hoverPause(); clickWord(word.text); } } : undefined}
+          >
             {word.text}
           </span>
         ))}

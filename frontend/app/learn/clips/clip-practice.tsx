@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import SyncedCaptionPlayer from "@/components/synced-caption-player";
+import WordLookupPanel from "@/components/word-lookup-panel";
 import type { ClipReportReason, LearnerClip } from "@/lib/contracts";
 
 type Envelope<T> = { success?: boolean; message?: string; data?: T };
@@ -69,6 +70,7 @@ export default function ClipPractice({ initialClips, initialSavedOnly = false }:
   const [reporting, setReporting] = useState(false);
   const [error, setError] = useState("");
   const [loadingMore, setLoadingMore] = useState(false);
+  const [lookupWord, setLookupWord] = useState<string | null>(null);
   const [savedOnly, setSavedOnly] = useState(initialSavedOnly);
   const [savingClip, setSavingClip] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -79,6 +81,17 @@ export default function ClipPractice({ initialClips, initialSavedOnly = false }:
   useEffect(() => {
     setSettings(loadSettings());
   }, []);
+
+  // Klip değişince açık kelime penceresini kapat.
+  const clipId = clip?.id;
+  useEffect(() => { setLookupWord(null); }, [clipId]);
+
+  const closeLookup = useCallback(() => setLookupWord(null), []);
+  function openLookup(word: string) {
+    clearTimer(); // otomatik geçiş sayacı varsa iptal et
+    setHasInteracted(true);
+    setLookupWord(word);
+  }
 
   function update(patch: Partial<Settings>) {
     const next = { ...settings, ...patch };
@@ -240,10 +253,11 @@ export default function ClipPractice({ initialClips, initialSavedOnly = false }:
           words={clip.words.length > 0 ? clip.words : undefined}
           loops={loop ? LOOP_COUNT : 1}
           autoPlay={hasInteracted || index > 0}
-          paused={reportOpen}
+          paused={reportOpen || lookupWord !== null}
           showCaption={captions && !clip.hasBurnedInCaptions}
           sync={sync}
           onFinished={handleFinished}
+          onWordClick={openLookup}
         />
         <button type="button" className={`clip-save${clip.isSaved ? " is-saved" : ""}`} onClick={toggleSaveClip} disabled={savingClip} aria-pressed={clip.isSaved === true} aria-label={clip.isSaved ? "Kayıtlılardan çıkar" : "Klibi kaydet"} title={clip.isSaved ? "Kayıtlılardan çıkar" : "Klibi kaydet"}>
           <svg viewBox="0 0 24 24" width="20" height="20" fill={clip.isSaved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4.5L5 21V4a1 1 0 0 1 1-1z" /></svg>
@@ -264,6 +278,8 @@ export default function ClipPractice({ initialClips, initialSavedOnly = false }:
         <a className="cinema-button" href={`https://www.youtube.com/watch?v=${encodeURIComponent(clip.youtubeId)}&t=${Math.floor(clip.startSec)}s`} target="_blank" rel="noopener noreferrer">YouTube’da izle ↗</a>
       </div>
     </>}
+
+    {lookupWord && clip && <WordLookupPanel word={lookupWord} onClose={closeLookup}/>}
 
     {reportOpen && clip && <div className="cinema-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) closeReport(); }}>
       <div className="cinema-modal" role="dialog" aria-modal="true" aria-labelledby="report-title" tabIndex={-1} ref={modalRef}>

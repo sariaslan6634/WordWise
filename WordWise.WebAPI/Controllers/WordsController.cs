@@ -27,6 +27,28 @@ namespace WordWise.WebAPI.Controllers
             return Ok(ApiResponse<List<WordSuggestionDto>>.Ok(result));
         }
 
+        /// <summary>
+        /// Altyazıda tıklanan sözcüğün anlamı: önce sözcüğün kendisi, yoksa olası ana biçimleri (giving → give) aranır.
+        /// </summary>
+        [HttpGet("lookup")]
+        [ProducesResponseType(typeof(ApiResponse<WordDetailDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> Lookup([FromQuery] string text, CancellationToken cancellationToken)
+        {
+            var claim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            Guid? userId = Guid.TryParse(claim, out var parsed) ? parsed : null;
+            foreach (var candidate in WordWise.Application.Features.Words.WordForms.Candidates(text).Take(12))
+            {
+                try
+                {
+                    var result = await _mediator.Send(new GetWordByTextQuery(candidate, userId), cancellationToken);
+                    return Ok(ApiResponse<WordDetailDto>.Ok(result, "Kelime Bulundu."));
+                }
+                catch (WordWise.Application.Common.Exceptions.NotFoundException) { /* sıradaki adayı dene */ }
+            }
+            throw new WordWise.Application.Common.Exceptions.NotFoundException("Word", text);
+        }
+
         [HttpGet("search")]
         [ProducesResponseType(typeof(ApiResponse<WordDetailDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
