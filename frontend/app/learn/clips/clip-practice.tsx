@@ -229,44 +229,39 @@ export default function ClipPractice({ initialClips, initialSavedOnly = false }:
       <button type="button" className="cinema-button primary" onClick={() => void loadMore()} disabled={loadingMore}>{loadingMore ? "Yükleniyor…" : "Yeni klipler getir"}</button>
       {error && <p className="cinema-error" role="alert">{error}</p>}
     </div>) : <>
-      <SyncedCaptionPlayer
-        key={clip.id}
-        variant="cinema"
-        videoId={clip.youtubeId}
-        startSec={clip.startSec}
-        endSec={clip.endSec}
-        text={clip.text}
-        words={clip.words.length > 0 ? clip.words : undefined}
-        loops={loop ? LOOP_COUNT : 1}
-        autoPlay={hasInteracted || index > 0}
-        paused={reportOpen}
-        showCaption={captions && !clip.hasBurnedInCaptions}
-        sync={sync}
-        onFinished={handleFinished}
-      />
-
-      <div className="clip-source">
-        <div className="clip-source-head">
-          <div className="clip-source-meta">
-            <span className="clip-source-label">Kaynak video</span>
-            <strong>{clip.sourceTitle || "YouTube videosu"}</strong>
-            {clip.sourceChannel && <span className="clip-source-channel">Kanal: {clip.sourceChannel}</span>}
-          </div>
-          <div className="clip-source-actions">
-            <button type="button" className={`cinema-button save-clip${clip.isSaved ? " is-saved" : ""}`} onClick={toggleSaveClip} disabled={savingClip} aria-pressed={clip.isSaved === true}>
-              <svg viewBox="0 0 24 24" width="16" height="16" fill={clip.isSaved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4.5L5 21V4a1 1 0 0 1 1-1z" /></svg>
-              {clip.isSaved ? "Kaydedildi" : "Kaydet"}
-            </button>
-            <a className="cinema-button" href={`https://www.youtube.com/watch?v=${encodeURIComponent(clip.youtubeId)}&t=${Math.floor(clip.startSec)}s`} target="_blank" rel="noopener noreferrer">YouTube’da izle ↗</a>
-          </div>
-        </div>
-        {clip.sourceDescription && <details className="clip-source-desc"><summary>Video açıklaması</summary><p>{clip.sourceDescription}</p></details>}
+      <div className="clip-stage">
+        <SyncedCaptionPlayer
+          key={clip.id}
+          variant="cinema"
+          videoId={clip.youtubeId}
+          startSec={clip.startSec}
+          endSec={clip.endSec}
+          text={clip.text}
+          words={clip.words.length > 0 ? clip.words : undefined}
+          loops={loop ? LOOP_COUNT : 1}
+          autoPlay={hasInteracted || index > 0}
+          paused={reportOpen}
+          showCaption={captions && !clip.hasBurnedInCaptions}
+          sync={sync}
+          onFinished={handleFinished}
+        />
+        <button type="button" className={`clip-save${clip.isSaved ? " is-saved" : ""}`} onClick={toggleSaveClip} disabled={savingClip} aria-pressed={clip.isSaved === true} aria-label={clip.isSaved ? "Kayıtlılardan çıkar" : "Klibi kaydet"} title={clip.isSaved ? "Kayıtlılardan çıkar" : "Klibi kaydet"}>
+          <svg viewBox="0 0 24 24" width="20" height="20" fill={clip.isSaved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4.5L5 21V4a1 1 0 0 1 1-1z" /></svg>
+        </button>
       </div>
 
       <div className="cinema-nav">
         <button type="button" className="cinema-button" onClick={() => { setHasInteracted(true); goTo(Math.max(0, index - 1)); }} disabled={index === 0}>← Önceki</button>
         <span>{index + 1} / {clips.length}{waiting ? " · sonraki klip geliyor…" : ""}</span>
         <button type="button" className="cinema-button primary" onClick={() => { setHasInteracted(true); goTo(index + 1); }}>Sonraki →</button>
+      </div>
+
+      <div className="clip-source">
+        <div className="clip-source-meta">
+          <strong>{clip.sourceTitle || "YouTube videosu"}</strong>
+          {clip.sourceChannel && <span className="clip-source-channel">Kanal: {clip.sourceChannel}</span>}
+        </div>
+        <a className="cinema-button" href={`https://www.youtube.com/watch?v=${encodeURIComponent(clip.youtubeId)}&t=${Math.floor(clip.startSec)}s`} target="_blank" rel="noopener noreferrer">YouTube’da izle ↗</a>
       </div>
     </>}
 
