@@ -7,6 +7,8 @@ export type CaptionWord = { text: string; start: number; end: number };
 type YtPlayer = {
   destroy(): void;
   getCurrentTime(): number;
+  getDuration(): number;
+  seekTo(seconds: number, allowSeekAhead: boolean): void;
   pauseVideo(): void;
   playVideo(): void;
   setVolume(volume: number): void;
@@ -113,6 +115,8 @@ export default function SyncedCaptionPlayer({
   const [ended, setEnded] = useState(false); // klip bitti: ortada büyük tekrar butonu göster
   const playsRef = useRef(0);
   const finishedRef = useRef(false);
+  const lastTimeRef = useRef(0); // önceki karedeki süre: Shorts'un kendi kendine başa sarmasını yakalamak için
+  const seekGuardRef = useRef(false); // başlangıçtan önce başlayan oynatma bir kez düzeltilir
   const armedRef = useRef(false); // oynatma bitiş saniyesinden uzaklaşınca true olur; tekrar başlarken eski bitişin yeniden sayılmasını önler
   const loopsRef = useRef(loops);
   const onFinishedRef = useRef(onFinished);
@@ -163,6 +167,8 @@ export default function SyncedCaptionPlayer({
     playsRef.current = 0;
     finishedRef.current = false;
     armedRef.current = false;
+    lastTimeRef.current = 0;
+    seekGuardRef.current = false;
     const w = window as unknown as YtWindow;
     const previousReady = w.onYouTubeIframeAPIReady;
 
@@ -175,6 +181,7 @@ export default function SyncedCaptionPlayer({
       if (playsRef.current < loopsRef.current) {
         setPlay(playsRef.current + 1);
         finishedRef.current = false;
+        seekGuardRef.current = false;
         playerRef.current?.loadVideoById({ videoId, startSeconds: startSec, endSeconds: endSec });
       } else {
         // Klip bitti: videoyu başa sarılmış, durmuş hâlde hazırla. Oynat'a basınca baştan oynar (kaldığı yerden değil).
@@ -224,7 +231,18 @@ export default function SyncedCaptionPlayer({
                   const current = playerRef.current.getCurrentTime() || 0;
                   setTime(current);
                   if (!armedRef.current && current < endSec - 0.5) armedRef.current = true;
-                  if (current >= endSec - 0.15 && current > startSec + 0.3) handleEnd();
+                  const last = lastTimeRef.current;
+                  lastTimeRef.current = current;
+                  const duration = playerRef.current.getDuration?.() || 0;
+                  // YouTube oynatıcıyı klip başlangıcından (tam saniyeye yuvarlanmış) önce başlatabilir: bir kez tam başlangıca sar.
+                  if (!seekGuardRef.current && current > 0 && current < startSec - 0.1 && current > startSec - 1.5) {
+                    seekGuardRef.current = true;
+                    playerRef.current.seekTo(startSec, true);
+                  }
+                  // Shorts (ve videonun sonuna yakın klipler) bitince "ended" olayı vermeden kendiliğinden başa sarabilir.
+                  const wrapped = armedRef.current && last >= endSec - 1.5 && current < last - 1.5;
+                  const atVideoEnd = duration > 0 && endSec >= duration - 0.6 && current >= duration - 0.25;
+                  if (wrapped || atVideoEnd || (current >= endSec - 0.15 && current > startSec + 0.3)) handleEnd();
                 }
               } catch { /* oynatıcı yüklenirken geçici hata */ }
               frame = requestAnimationFrame(tick);
@@ -239,6 +257,8 @@ export default function SyncedCaptionPlayer({
               playsRef.current = 0;
               finishedRef.current = false;
               armedRef.current = false;
+              seekGuardRef.current = false;
+              lastTimeRef.current = 0;
               setPlay(1);
             }
           },
@@ -279,6 +299,8 @@ export default function SyncedCaptionPlayer({
     playsRef.current = 0;
     finishedRef.current = false;
     armedRef.current = false;
+    seekGuardRef.current = false;
+    lastTimeRef.current = 0;
     setPlay(1);
     playerRef.current?.loadVideoById({ videoId, startSeconds: startSec, endSeconds: endSec });
   }

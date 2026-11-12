@@ -67,7 +67,7 @@ namespace WordWise.Application.Features.Clips.Services
 
                 try
                 {
-                    var clips = await _generator.GenerateAsync(video.YoutubeId, null, cancellationToken, settings.AutoPublish);
+                    var clips = await _generator.GenerateAsync(video.YoutubeId, null, cancellationToken, settings.AutoPublish, settings.AutoPublishRequiresRealTimings);
                     record.Status = "Done";
                     record.ClipCount = clips.Count;
                     record.PublishedCount = clips.Count(c => c.IsPublished);

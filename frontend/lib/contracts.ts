@@ -104,6 +104,11 @@ export interface LearnerClip {
   text: string;
   words: { text: string; start: number; end: number }[];
   hasBurnedInCaptions: boolean;
+  sourceTitle?: string | null;
+  sourceChannel?: string | null;
+  sourceDescription?: string | null;
+  isSaved?: boolean;
+  savedAt?: string | null;
 }
 
 export type ClipReportReason = "Quality" | "CaptionSync" | "Inappropriate" | "Other";

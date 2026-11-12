@@ -1,14 +1,15 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using System.Text.Json;
 using WordWise.Application.Common.Interfaces;
 using WordWise.Application.Features.Clips.Dtos;
-using WordWise.Application.Features.Clips.Models;
 
 namespace WordWise.Application.Features.Clips.Queries.GetLearnerClips
 {
-    /// <summary>Yayındaki kliplerden rastgele bir seçki; kullanıcının daha önce bildirdiği klipler hariç.</summary>
-    public record GetLearnerClipsQuery(Guid UserId, int Count) : IRequest<List<LearnerClipDto>>;
+    /// <summary>
+    /// Rastgele bir klip seçkisi. Varsayılan: yayındaki klipler (kullanıcının bildirdikleri hariç).
+    /// SavedOnly: yalnızca kullanıcının kaydettiği klipler.
+    /// </summary>
+    public record GetLearnerClipsQuery(Guid UserId, int Count, bool SavedOnly = false) : IRequest<List<LearnerClipDto>>;
 
     public class GetLearnerClipsQueryHandler(IWordWiseDbContext _context)
         : IRequestHandler<GetLearnerClipsQuery, List<LearnerClipDto>>
@@ -16,26 +17,27 @@ namespace WordWise.Application.Features.Clips.Queries.GetLearnerClips
         public async Task<List<LearnerClipDto>> Handle(GetLearnerClipsQuery request, CancellationToken cancellationToken)
         {
             var count = Math.Clamp(request.Count, 1, 50);
-            var reportedByUser = _context.ClipReports
-                .Where(r => r.UserId == request.UserId)
-                .Select(r => r.ClipId);
-
-            var clips = await _context.VideoClips
-                .Where(c => c.IsPublished && !c.IsRejected && !reportedByUser.Contains(c.Id))
-                .OrderBy(c => Guid.NewGuid())
-                .Take(count)
+            var savedIds = await _context.UserClips
+                .Where(u => u.UserId == request.UserId)
+                .Select(u => u.ClipId)
                 .ToListAsync(cancellationToken);
 
-            return clips.Select(c => new LearnerClipDto
+            IQueryable<Domain.Entities.VideoClip> query;
+            if (request.SavedOnly)
             {
-                Id = c.Id,
-                YoutubeId = c.YoutubeId,
-                StartSec = c.StartSec,
-                EndSec = c.EndSec,
-                Text = c.Text,
-                HasBurnedInCaptions = c.HasBurnedInCaptions,
-                Words = JsonSerializer.Deserialize<List<CaptionWord>>(c.WordTimingsJson, VideoClipMapper.JsonOptions) ?? new(),
-            }).ToList();
+                query = _context.VideoClips.Where(c => !c.IsRejected && savedIds.Contains(c.Id));
+            }
+            else
+            {
+                var reportedByUser = _context.ClipReports
+                    .Where(r => r.UserId == request.UserId)
+                    .Select(r => r.ClipId);
+                query = _context.VideoClips.Where(c => c.IsPublished && !c.IsRejected && !reportedByUser.Contains(c.Id));
+            }
+
+            var clips = await query.OrderBy(c => Guid.NewGuid()).Take(count).ToListAsync(cancellationToken);
+            var saved = savedIds.ToHashSet();
+            return clips.Select(c => LearnerClipMapper.ToDto(c, saved.Contains(c.Id))).ToList();
         }
     }
 }

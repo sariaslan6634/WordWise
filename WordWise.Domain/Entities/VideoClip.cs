@@ -14,6 +14,12 @@ namespace WordWise.Domain.Entities
 
         public string? SourceTitle { get; set; }
 
+        /// <summary>Videoyu yükleyen kanalın adı (öğrenciye kaynak olarak gösterilir).</summary>
+        public string? SourceChannel { get; set; }
+
+        /// <summary>Video açıklamasının ilk bölümü (en çok 1000 karakter).</summary>
+        public string? SourceDescription { get; set; }
+
         public string YoutubeId { get; set; } = string.Empty;
 
         public double StartSec { get; set; }

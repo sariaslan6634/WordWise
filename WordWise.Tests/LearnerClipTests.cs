@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using WordWise.Application.Common.Exceptions;
 using WordWise.Application.Features.Clips.Commands.ReportClip;
+using WordWise.Application.Features.Clips.Commands.SaveClip;
 using WordWise.Application.Features.Clips.Queries.GetLearnerClips;
+using WordWise.Application.Features.Clips.Queries.GetSavedClips;
 using WordWise.Domain.Entities;
 using WordWise.Domain.Enums;
 using WordWise.Infrastructure.Persistence.Context;
@@ -110,5 +112,49 @@ public class BurnedInCaptionTests
         await Assert.ThrowsAsync<NotFoundException>(() =>
             new WordWise.Application.Features.Clips.Commands.ReviewClip.SetBurnedInCaptionsCommandHandler(context)
                 .Handle(new WordWise.Application.Features.Clips.Commands.ReviewClip.SetBurnedInCaptionsCommand("ccccccccccc", true), default));
+    }
+
+    [Fact]
+    public async Task Saving_clips_is_idempotent_listed_newest_first_and_can_be_restricted_to_in_the_random_feed()
+    {
+        await using var context = CreateContext();
+        var a = Clip(published: true);
+        var b = Clip(published: true);
+        var unpublished = Clip(published: false);
+        context.VideoClips.AddRange(a, b, unpublished);
+        await context.SaveChangesAsync();
+        var user = Guid.NewGuid();
+        var save = new SaveClipCommandHandler(context);
+
+        await save.Handle(new SaveClipCommand(user, a.Id), default);
+        await save.Handle(new SaveClipCommand(user, a.Id), default); // tekrar: hata yok, kopya yok
+        await save.Handle(new SaveClipCommand(user, unpublished.Id), default); // sonradan yayından kalksa da kaydedilebilir
+        Assert.Equal(2, await context.UserClips.CountAsync());
+        await Assert.ThrowsAsync<NotFoundException>(() => save.Handle(new SaveClipCommand(user, Guid.NewGuid()), default));
+
+        var saved = await new GetSavedClipsQueryHandler(context).Handle(new GetSavedClipsQuery(user), default);
+        Assert.Equal(2, saved.Count);
+        Assert.All(saved, c => Assert.True(c.IsSaved));
+
+        var onlySaved = await new GetLearnerClipsQueryHandler(context).Handle(new GetLearnerClipsQuery(user, 20, SavedOnly: true), default);
+        Assert.Equal(2, onlySaved.Count);
+        Assert.DoesNotContain(onlySaved, c => c.Id == b.Id);
+
+        var feed = await new GetLearnerClipsQueryHandler(context).Handle(new GetLearnerClipsQuery(user, 20), default);
+        Assert.Equal(2, feed.Count); // yayındaki a ve b
+        Assert.True(feed.Single(c => c.Id == a.Id).IsSaved);
+        Assert.False(feed.Single(c => c.Id == b.Id).IsSaved);
+
+        // Çıkarma da tekrar edilebilir; yeniden kaydedince aynı satır geri gelir.
+        var unsave = new UnsaveClipCommandHandler(context);
+        await unsave.Handle(new UnsaveClipCommand(user, a.Id), default);
+        await unsave.Handle(new UnsaveClipCommand(user, a.Id), default);
+        Assert.Single(await new GetSavedClipsQueryHandler(context).Handle(new GetSavedClipsQuery(user), default));
+        await save.Handle(new SaveClipCommand(user, a.Id), default);
+        Assert.Equal(2, await context.UserClips.IgnoreQueryFilters().CountAsync());
+        Assert.Equal(2, (await new GetSavedClipsQueryHandler(context).Handle(new GetSavedClipsQuery(user), default)).Count);
+
+        // Başka kullanıcının kayıtları ayrıdır.
+        Assert.Empty(await new GetSavedClipsQueryHandler(context).Handle(new GetSavedClipsQuery(Guid.NewGuid()), default));
     }
 }

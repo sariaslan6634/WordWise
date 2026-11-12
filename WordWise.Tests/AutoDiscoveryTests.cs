@@ -47,7 +47,7 @@ public class AutoDiscoveryTests
                 new List<string> { "english" }, 180, "hd", true, "public", false));
     }
 
-    private static ClipDiscoveryRunner CreateRunner(WordWiseDbContext context, bool autoPublish)
+    private static ClipDiscoveryRunner CreateRunner(WordWiseDbContext context, bool autoPublish, bool requireRealTimings = false)
     {
         var captions = new FakeCaptions();
         var details = new FakeDetails();
@@ -55,7 +55,7 @@ public class AutoDiscoveryTests
             context,
             new FakeDiscovery(GoodId, NoCaptionId),
             new ClipGenerator(context, captions, details),
-            Options.Create(new AutoDiscoverySettings { AutoPublish = autoPublish, MaxVideosPerRun = 3 }),
+            Options.Create(new AutoDiscoverySettings { AutoPublish = autoPublish, AutoPublishRequiresRealTimings = requireRealTimings, MaxVideosPerRun = 3 }),
             NullLogger<ClipDiscoveryRunner>.Instance);
     }
 
@@ -94,5 +94,21 @@ public class AutoDiscoveryTests
         Assert.True(result.ClipsCreated > 0);
         Assert.Equal(0, result.ClipsPublished);
         Assert.All(await context.VideoClips.ToListAsync(), c => Assert.False(c.IsPublished));
+    }
+
+    [Fact]
+    public async Task Clips_with_estimated_word_timings_wait_for_admin_when_real_timings_are_required()
+    {
+        await using var context = CreateContext();
+        var runner = CreateRunner(context, autoPublish: true, requireRealTimings: true);
+
+        var result = await runner.RunOnceAsync(default);
+
+        Assert.True(result.ClipsCreated > 0);
+        Assert.Equal(0, result.ClipsPublished); // sahte altyazıda kelime zamanları tahmini
+        var clips = await context.VideoClips.ToListAsync();
+        Assert.All(clips, c => Assert.False(c.IsPublished));
+        Assert.All(clips, c => Assert.Equal("Channel", c.SourceChannel));
+        Assert.All(clips, c => Assert.Equal("Nothing special", c.SourceDescription));
     }
 }

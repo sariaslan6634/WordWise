@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import SyncedCaptionPlayer from "@/components/synced-caption-player";
 import type { ClipReportReason, LearnerClip } from "@/lib/contracts";
@@ -53,7 +54,7 @@ function loadSettings(): Settings {
   return defaultSettings;
 }
 
-export default function ClipPractice({ initialClips }: { initialClips: LearnerClip[] }) {
+export default function ClipPractice({ initialClips, initialSavedOnly = false }: { initialClips: LearnerClip[]; initialSavedOnly?: boolean }) {
   const [clips, setClips] = useState(initialClips);
   const [index, setIndex] = useState(0);
   const [settings, setSettings] = useState<Settings>(defaultSettings);
@@ -68,6 +69,8 @@ export default function ClipPractice({ initialClips }: { initialClips: LearnerCl
   const [reporting, setReporting] = useState(false);
   const [error, setError] = useState("");
   const [loadingMore, setLoadingMore] = useState(false);
+  const [savedOnly, setSavedOnly] = useState(initialSavedOnly);
+  const [savingClip, setSavingClip] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -155,15 +158,36 @@ export default function ClipPractice({ initialClips }: { initialClips: LearnerCl
     } finally { setReporting(false); }
   }
 
-  async function loadMore() {
+  async function loadMore(onlySaved = savedOnly) {
     clearTimer();
     setLoadingMore(true); setError("");
     try {
-      const fresh = await request<LearnerClip[]>("Clips?count=20");
+      const fresh = await request<LearnerClip[]>(`Clips?count=20${onlySaved ? "&savedOnly=true" : ""}`);
       setClips(fresh); setIndex(0); setFetchedEmpty(fresh.length === 0);
     } catch (value) {
       setError(value instanceof Error ? value.message : "Yeni klipler alınamadı.");
     } finally { setLoadingMore(false); }
+  }
+
+  function toggleSavedOnly(value: boolean) {
+    setSavedOnly(value);
+    setHasInteracted(true);
+    void loadMore(value);
+  }
+
+  async function toggleSaveClip() {
+    if (!clip || savingClip) return;
+    const next = !clip.isSaved;
+    const id = clip.id;
+    const mark = (value: boolean) => setClips((current) => current.map((item) => (item.id === id ? { ...item, isSaved: value } : item)));
+    setSavingClip(true); setError("");
+    mark(next); // anında tepki ver; hata olursa geri al
+    try {
+      await request<unknown>(`Clips/${encodeURIComponent(id)}/save`, { method: next ? "POST" : "DELETE" });
+    } catch (value) {
+      mark(!next);
+      setError(value instanceof Error ? value.message : "Klip kaydedilemedi.");
+    } finally { setSavingClip(false); }
   }
 
   return <div className="cinema-stage">
@@ -184,20 +208,25 @@ export default function ClipPractice({ initialClips }: { initialClips: LearnerCl
         <input type="checkbox" role="switch" checked={sync} onChange={(event) => update({ sync: event.target.checked })}/>
         <span>Senkron konuşma<small>Kapalıysa cümle baştan tam görünür</small></span>
       </label>
-      {clip && <div className="cinema-bar-end">
-        <button type="button" className="cinema-button report" onClick={openReport}>⚑ Videoyu bildir</button>
-      </div>}
+      <label className="cinema-switch">
+        <input type="checkbox" role="switch" checked={savedOnly} onChange={(event) => toggleSavedOnly(event.target.checked)} disabled={loadingMore}/>
+        <span>Sadece kaydettiklerim<small>Kayıtlı kliplerden rastgele getir</small></span>
+      </label>
+      <div className="cinema-bar-end">
+        <Link className="cinema-button" href="/learn/clips/saved">★ Kayıtlı klipler</Link>
+        {clip && <button type="button" className="cinema-button report" onClick={openReport}>⚑ Videoyu bildir</button>}
+      </div>
     </div>
 
     {loadingMore && !clip ? <p className="cinema-empty">Klipler yükleniyor…</p>
     : !clip ? (fetchedEmpty ? <div className="cinema-done">
-      <h2>Henüz klip yok</h2>
-      <p>Henüz yayınlanmış klip yok. Biraz sonra tekrar bak.</p>
+      <h2>{savedOnly ? "Kayıtlı klibin yok" : "Henüz klip yok"}</h2>
+      <p>{savedOnly ? "Bir klibi “Kaydet” ile kaydedince burada rastgele çıkar. Tüm klipler için “Sadece kaydettiklerim”i kapat." : "Henüz yayınlanmış klip yok. Biraz sonra tekrar bak."}</p>
       {error && <p className="cinema-error" role="alert">{error}</p>}
     </div> : <div className="cinema-done">
       <h2>Bu seri bitti 🎉</h2>
       <p>Tüm klipleri izledin. Yeni bir seri için devam edebilirsin.</p>
-      <button type="button" className="cinema-button primary" onClick={loadMore} disabled={loadingMore}>{loadingMore ? "Yükleniyor…" : "Yeni klipler getir"}</button>
+      <button type="button" className="cinema-button primary" onClick={() => void loadMore()} disabled={loadingMore}>{loadingMore ? "Yükleniyor…" : "Yeni klipler getir"}</button>
       {error && <p className="cinema-error" role="alert">{error}</p>}
     </div>) : <>
       <SyncedCaptionPlayer
@@ -215,6 +244,24 @@ export default function ClipPractice({ initialClips }: { initialClips: LearnerCl
         sync={sync}
         onFinished={handleFinished}
       />
+
+      <div className="clip-source">
+        <div className="clip-source-head">
+          <div className="clip-source-meta">
+            <span className="clip-source-label">Kaynak video</span>
+            <strong>{clip.sourceTitle || "YouTube videosu"}</strong>
+            {clip.sourceChannel && <span className="clip-source-channel">Kanal: {clip.sourceChannel}</span>}
+          </div>
+          <div className="clip-source-actions">
+            <button type="button" className={`cinema-button save-clip${clip.isSaved ? " is-saved" : ""}`} onClick={toggleSaveClip} disabled={savingClip} aria-pressed={clip.isSaved === true}>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill={clip.isSaved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4.5L5 21V4a1 1 0 0 1 1-1z" /></svg>
+              {clip.isSaved ? "Kaydedildi" : "Kaydet"}
+            </button>
+            <a className="cinema-button" href={`https://www.youtube.com/watch?v=${encodeURIComponent(clip.youtubeId)}&t=${Math.floor(clip.startSec)}s`} target="_blank" rel="noopener noreferrer">YouTube’da izle ↗</a>
+          </div>
+        </div>
+        {clip.sourceDescription && <details className="clip-source-desc"><summary>Video açıklaması</summary><p>{clip.sourceDescription}</p></details>}
+      </div>
 
       <div className="cinema-nav">
         <button type="button" className="cinema-button" onClick={() => { setHasInteracted(true); goTo(Math.max(0, index - 1)); }} disabled={index === 0}>← Önceki</button>

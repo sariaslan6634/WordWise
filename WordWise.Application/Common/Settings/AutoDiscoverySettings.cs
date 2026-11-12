@@ -19,6 +19,9 @@ namespace WordWise.Application.Common.Settings
         /// <summary>true ise kalite kontrolünden geçen klipler admin onayı beklemeden yayınlanır.</summary>
         public bool AutoPublish { get; set; } = true;
 
+        /// <summary>true ise yalnızca kelime zamanları gerçek (otomatik altyazı kaydıyla eşleşen) klipler otomatik yayınlanır; tahmini zamanlılar admin onayı bekler.</summary>
+        public bool AutoPublishRequiresRealTimings { get; set; } = true;
+
         /// <summary>YouTube araması süre filtresi: "short" (4 dk altı), "medium" (4-20 dk), "any".</summary>
         public string VideoDuration { get; set; } = "short";
 

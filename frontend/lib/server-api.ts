@@ -56,8 +56,12 @@ export async function getAdminVideoCandidatesByWordId(wordId: string, token?: st
   return apiRequest<VideoCandidate[]>(`/api/AdminVideo/candidates/${encodeURIComponent(wordId)}`, token);
 }
 
-export async function getLearnerClips(token?: string, count = 20) {
-  return apiRequest<LearnerClip[]>(`/api/Clips?count=${count}`, token);
+export async function getLearnerClips(token?: string, count = 20, savedOnly = false) {
+  return apiRequest<LearnerClip[]>(`/api/Clips?count=${count}${savedOnly ? "&savedOnly=true" : ""}`, token);
+}
+
+export async function getSavedClips(token?: string) {
+  return apiRequest<LearnerClip[]>("/api/Clips/saved", token);
 }
 
 export async function getAdminClips(token?: string) {

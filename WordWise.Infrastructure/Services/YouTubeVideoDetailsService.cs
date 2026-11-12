@@ -14,7 +14,13 @@ namespace WordWise.Infrastructure.Services
         IOptions<YoutubeSettings> _options,
         ILogger<YouTubeVideoDetailsService> _logger) : IVideoDetailsService
     {
-        public async Task<VideoDetails?> GetVideoDetailsAsync(string youtubeId, CancellationToken cancellationToken = default)
+        public Task<VideoDetails?> GetVideoDetailsAsync(string youtubeId, CancellationToken cancellationToken = default) =>
+            FetchAsync(youtubeId, probeResolution: true, cancellationToken);
+
+        public Task<VideoDetails?> GetSnippetAsync(string youtubeId, CancellationToken cancellationToken = default) =>
+            FetchAsync(youtubeId, probeResolution: false, cancellationToken);
+
+        private async Task<VideoDetails?> FetchAsync(string youtubeId, bool probeResolution, CancellationToken cancellationToken)
         {
             try
             {
@@ -37,7 +43,7 @@ namespace WordWise.Infrastructure.Services
                 var details = Parse(youtubeId, items[0]);
 
                 // YouTube API sadece hd/sd söyler; HD değilse gerçek yüksekliği yt-dlp ile ölç (480p eşiği için).
-                if (!string.Equals(details.Definition, "hd", StringComparison.OrdinalIgnoreCase))
+                if (probeResolution && !string.Equals(details.Definition, "hd", StringComparison.OrdinalIgnoreCase))
                     details = details with { MaxHeight = await ProbeMaxHeightAsync(youtubeId, cancellationToken) };
 
                 return details;
