@@ -22,6 +22,7 @@ export function warmUpVoices() {
 export default function WordLookupPanel({ word, playKey, onClose }: { word: string; playKey: number; onClose: () => void }) {
   const [state, setState] = useState<State>({ status: "loading" });
   const [silent, setSilent] = useState(false); // hiçbir kaynaktan ses bulunamadı
+  const [source, setSource] = useState(""); // hangi kaynaktan okundu (bilgi amaçlı)
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
 
@@ -45,12 +46,20 @@ export default function WordLookupPanel({ word, playKey, onClose }: { word: stri
         const audio = new Audio(url);
         audioRef.current = audio;
         let settled = false;
-        const finish = (value: boolean) => { if (!settled) { settled = true; resolve(value); } };
+        const finish = (value: boolean) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
+          if (!value) { audio.pause(); audio.removeAttribute("src"); } // yavaş/yanıtsız sunucuyu bekleme, sıradaki kaynağa geç
+          resolve(value);
+        };
+        // Sunucu kaydı internetten indiriyor olabilir: 3 sn içinde başlamazsa sıradaki kaynağa geç (indirme arka planda sürer, sonraki tıklamada hazır olur).
+        const timeout = setTimeout(() => finish(false), 3000);
         audio.addEventListener("playing", () => finish(true), { once: true });
         audio.addEventListener("error", () => finish(false), { once: true });
         audio.play().catch(() => finish(false));
       });
-      if (ok) return true;
+      if (ok) { if (run === runRef.current) setSource(`Kayıt (${accent === "us" ? "Amerikan" : "İngiliz"}): ${text}`); return true; }
     }
     return false;
   }, []);
@@ -78,6 +87,7 @@ export default function WordLookupPanel({ word, playKey, onClose }: { word: stri
       fallback.lang = "en-US";
       fallback.rate = 0.9;
       synth.speak(fallback);
+      setSource("Tarayıcı sesi (varsayılan)");
       return true;
     }
     if (run !== runRef.current) return true;
@@ -86,6 +96,7 @@ export default function WordLookupPanel({ word, playKey, onClose }: { word: stri
     utterance.lang = voice.lang;
     utterance.rate = 0.9;
     synth.speak(utterance);
+    setSource(`Tarayıcı sesi: ${voice.name}`);
     return true;
   }, []);
 
@@ -93,6 +104,7 @@ export default function WordLookupPanel({ word, playKey, onClose }: { word: stri
   const speak = useCallback(async (text: string) => {
     stopSpeaking();
     setSilent(false);
+    setSource("");
     const run = runRef.current;
     if (await playRecording(text, run)) return;
     if (run !== runRef.current) return;
@@ -165,6 +177,7 @@ export default function WordLookupPanel({ word, playKey, onClose }: { word: stri
     </div>
 
     {silent && <p className="word-panel-note">Bu kelime için ses kaydı bulunamadı.</p>}
+    {source && !silent && <p className="word-panel-source">🔊 {source}</p>}
     {state.status === "loading" && <p className="word-panel-note" role="status">Anlamı getiriliyor…</p>}
     {state.status === "missing" && <p className="word-panel-note">Bu kelime sözlüğümüzde bulunamadı.</p>}
     {state.status === "error" && <p className="word-panel-note" role="alert">Anlam alınamadı{state.detail ? ` (${state.detail})` : ""}. Bağlantını kontrol edip tekrar dene.</p>}

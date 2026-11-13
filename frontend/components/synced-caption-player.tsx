@@ -8,6 +8,7 @@ type YtPlayer = {
   destroy(): void;
   getCurrentTime(): number;
   getDuration(): number;
+  getPlayerState(): number;
   seekTo(seconds: number, allowSeekAhead: boolean): void;
   pauseVideo(): void;
   playVideo(): void;
@@ -155,6 +156,8 @@ export default function SyncedCaptionPlayer({
   const pausedPropRef = useRef(paused);
   const playingRef = useRef(false); // video şu an gerçekten oynuyor mu
   const hoverPausedRef = useRef(false); // altyazının üstüne gelince biz durdurduk
+  const captionInnerRef = useRef<HTMLSpanElement>(null);
+  const hoverTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   useEffect(() => {
     pausedPropRef.current = paused;
     const player = playerRef.current;
@@ -314,16 +317,35 @@ export default function SyncedCaptionPlayer({
   }
 
   // Altyazının üstüne gelince video durur, çekilince (tıklama yoksa) devam eder.
-  function hoverPause() {
-    if (!onWordClick || !playingRef.current) return;
-    try { playerRef.current?.pauseVideo(); hoverPausedRef.current = true; } catch { /* oynatıcı hazır değil */ }
+  function stopHoverWatch() {
+    if (hoverTimerRef.current) { clearInterval(hoverTimerRef.current); hoverTimerRef.current = null; }
   }
-  function hoverResume() {
+  function resumeAfterHover() {
+    stopHoverWatch();
     if (!hoverPausedRef.current) return;
     hoverPausedRef.current = false;
     if (pausedPropRef.current) return; // tıklandı: pencere açık, video durmaya devam eder
-    try { playerRef.current?.playVideo(); } catch { /* oynatıcı hazır değil */ }
+    const player = playerRef.current;
+    if (!player) return;
+    const play = () => { try { player.playVideo(); } catch { /* oynatıcı hazır değil */ } };
+    play();
+    // YouTube ilk çağrıyı bazen yutar: hâlâ duruyorsa bir kez daha dene.
+    setTimeout(() => {
+      try { if (!pausedPropRef.current && player.getPlayerState() === 2) player.playVideo(); } catch { /* yoksay */ }
+    }, 250);
   }
+  function hoverPause() {
+    if (!onWordClick || !playingRef.current) return;
+    try { playerRef.current?.pauseVideo(); hoverPausedRef.current = true; } catch { return; }
+    // mouseleave bazen gelmez (imleç videonun iframe'ine geçince): imleç altyazıdan çıkınca ayrıca yoklayarak devam ettir.
+    stopHoverWatch();
+    hoverTimerRef.current = setInterval(() => {
+      const inner = captionInnerRef.current;
+      if (!inner || !inner.matches(":hover")) resumeAfterHover();
+    }, 120);
+  }
+  function hoverResume() { resumeAfterHover(); }
+  useEffect(() => stopHoverWatch, []);
   function clickWord(token: string) {
     if (!onWordClick) return;
     const clean = token.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "");
@@ -336,7 +358,7 @@ export default function SyncedCaptionPlayer({
   const interactive = Boolean(onWordClick);
   const caption = (
     <p className={`scp-caption${interactive ? " interactive" : ""}`} aria-live="off">
-      <span className="scp-caption-inner" onMouseEnter={interactive ? hoverPause : undefined} onMouseLeave={interactive ? hoverResume : undefined}>
+      <span className="scp-caption-inner" ref={captionInnerRef} onMouseEnter={interactive ? hoverPause : undefined} onMouseLeave={interactive ? hoverResume : undefined}>
         {captionWords.map((word, index) => (
           <span
             key={`${word.text}-${index}`}

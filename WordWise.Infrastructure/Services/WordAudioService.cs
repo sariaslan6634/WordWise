@@ -64,7 +64,7 @@ namespace WordWise.Infrastructure.Services
             try
             {
                 var client = _httpFactory.CreateClient();
-                client.Timeout = TimeSpan.FromSeconds(8);
+                client.Timeout = TimeSpan.FromSeconds(4);
                 foreach (var name in names)
                 {
                     using var request = new HttpRequestMessage(HttpMethod.Get, "https://commons.wikimedia.org/wiki/Special:FilePath/" + Uri.EscapeDataString(name));
@@ -88,7 +88,9 @@ namespace WordWise.Infrastructure.Services
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException)
             {
                 _logger.LogDebug(ex, "[WordAudio] {Word} ({Accent}) Commons'tan alınamadı.", key, accent);
-                return null; // geçici hata: olumsuz önbelleğe alma
+                // Ağ hatası/zaman aşımı: 10 dakika boyunca tekrar deneme (her tıklamada kullanıcıyı bekletme).
+                _misses[missKey] = DateTime.UtcNow - MissRetry + TimeSpan.FromMinutes(10);
+                return null;
             }
 
             _misses[missKey] = DateTime.UtcNow;
