@@ -26,6 +26,7 @@ export default function WordLookupPanel({ word, playKey, onClose }: { word: stri
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
 
+  const keepAlive = useRef<SpeechSynthesisUtterance | null>(null);
   const runRef = useRef(0); // her okuma isteğine numara: yeni tıklama eskisini iptal eder
   const baseRef = useRef<string | null>(null); // çekimli kelimenin sözlükteki ana biçimi (challenges → challenge)
   const pendingBaseRef = useRef(0); // ses bulunamadı ve ana biçim bekleniyor: bekleyen okuma numarası
@@ -80,12 +81,12 @@ export default function WordLookupPanel({ word, playKey, onClose }: { word: stri
     const us = english.filter((voice) => /^en[-_]US$/i.test(voice.lang));
     const voice = us.find((item) => /natural|online|google|aria|jenny|samantha/i.test(item.name)) ?? us[0] ?? english[0];
     if (!voice) {
-      if (voices.length > 0) return false; // sesler yüklü ama İngilizce yok: Türkçe sesle okuma
-      // Liste hiç gelmedi (tarayıcı bildirmedi): son çare olarak dil etiketiyle dene.
+      // İngilizce ses bulunamadı: tarayıcının varsayılan sesiyle (dil etiketi en-US) oku. Kusurlu olsa da sessiz kalmasından iyi.
       if (run !== runRef.current) return true;
       const fallback = new SpeechSynthesisUtterance(text);
       fallback.lang = "en-US";
       fallback.rate = 0.9;
+      keepAlive.current = fallback; // Chrome, referansı kalmayan okumayı bazen yarıda keser
       synth.speak(fallback);
       setSource("Tarayıcı sesi (varsayılan)");
       return true;
@@ -95,6 +96,7 @@ export default function WordLookupPanel({ word, playKey, onClose }: { word: stri
     utterance.voice = voice;
     utterance.lang = voice.lang;
     utterance.rate = 0.9;
+    keepAlive.current = utterance;
     synth.speak(utterance);
     setSource(`Tarayıcı sesi: ${voice.name}`);
     return true;
