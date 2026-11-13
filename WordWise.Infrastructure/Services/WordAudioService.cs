@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -19,6 +20,7 @@ namespace WordWise.Infrastructure.Services
         private readonly IHttpClientFactory _httpFactory;
         private readonly ILogger<WordAudioService> _logger;
         private readonly ConcurrentDictionary<string, DateTime> _misses = new();
+        private readonly ConcurrentDictionary<string, Task<WordAudioEntry?>> _inflight = new();
 
         public WordAudioService(IOptions<WordAudioSettings> options, ILogger<WordAudioService> logger, IHttpClientFactory httpFactory)
         {
@@ -59,6 +61,18 @@ namespace WordWise.Infrastructure.Services
             var missKey = $"{accent}:{key}";
             if (_misses.TryGetValue(missKey, out var when) && DateTime.UtcNow - when < MissRetry) return null;
 
+            // Aynı kelime için eşzamanlı istekler tek indirmeyi paylaşır. İndirme, istemci vazgeçse (bağlantıyı kapatsa) da
+            // tamamlanır ki sonraki tıklamada dosya hazır olsun.
+            var task = _inflight.GetOrAdd(missKey, _ => Task.Run(() => FetchAsync(key, accent, folder, missKey)));
+            try { return await task.WaitAsync(cancellationToken); }
+            catch (OperationCanceledException) { return null; }
+            finally { if (task.IsCompleted) _inflight.TryRemove(missKey, out _); }
+        }
+
+        private async Task<WordAudioEntry?> FetchAsync(string key, string accent, string folder, string missKey)
+        {
+            var cancellationToken = CancellationToken.None;
+
             var baseName = key.Replace(' ', '_');
             var names = accent == WordAudioIndex.Us ? new[] { $"En-us-{baseName}.ogg" } : new[] { $"En-gb-{baseName}.ogg", $"En-uk-{baseName}.ogg" };
             try
@@ -70,7 +84,7 @@ namespace WordWise.Infrastructure.Services
                     using var request = new HttpRequestMessage(HttpMethod.Get, "https://commons.wikimedia.org/wiki/Special:FilePath/" + Uri.EscapeDataString(name));
                     request.Headers.UserAgent.ParseAdd("WordWise/1.0 (English learning app; pronunciation cache)");
                     using var response = await client.SendAsync(request, cancellationToken);
-                    if (!response.IsSuccessStatusCode) continue;
+                    if (!response.IsSuccessStatusCode) { _logger.LogInformation("[WordAudio] Commons {Name}: HTTP {Status}", name, (int)response.StatusCode); continue; }
                     var bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
                     if (bytes.Length < 500 || bytes.Length > 3_000_000) continue;
 
@@ -84,10 +98,27 @@ namespace WordWise.Infrastructure.Services
                     _logger.LogInformation("[WordAudio] {Name} Commons'tan indirildi.", name);
                     return _index.Value.Find(key, accent);
                 }
+
+                _logger.LogInformation("[WordAudio] {Word} ({Accent}) Commons'ta bulunamadı; Free Dictionary deneniyor.", key, accent);
+                var free = await TryFreeDictionaryAsync(client, key, accent, cancellationToken);
+                if (free is not null)
+                {
+                    var dir = Path.Combine(folder, "fetched");
+                    Directory.CreateDirectory(dir);
+                    var path = Path.Combine(dir, $"En-{accent}-{baseName}{free.Value.Ext}");
+                    await File.WriteAllBytesAsync(path, free.Value.Bytes, cancellationToken);
+                    var entry = WordAudioIndex.Parse(path);
+                    if (entry is not null)
+                    {
+                        _index.Value.Add(entry);
+                        _logger.LogInformation("[WordAudio] {Word} ({Accent}) Free Dictionary'den indirildi.", key, accent);
+                        return _index.Value.Find(key, accent);
+                    }
+                }
             }
-            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException)
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException or JsonException)
             {
-                _logger.LogDebug(ex, "[WordAudio] {Word} ({Accent}) Commons'tan alınamadı.", key, accent);
+                _logger.LogWarning("[WordAudio] {Word} ({Accent}) internetten alınamadı: {Error}", key, accent, ex.Message);
                 // Ağ hatası/zaman aşımı: 10 dakika boyunca tekrar deneme (her tıklamada kullanıcıyı bekletme).
                 _misses[missKey] = DateTime.UtcNow - MissRetry + TimeSpan.FromMinutes(10);
                 return null;
@@ -95,6 +126,42 @@ namespace WordWise.Infrastructure.Services
 
             _misses[missKey] = DateTime.UtcNow;
             return null;
+        }
+
+
+        private static readonly string[] AllowedAudioHosts = { "api.dictionaryapi.dev", "upload.wikimedia.org", "ssl.gstatic.com" };
+
+        /// <summary>Free Dictionary API'nin verdiği ses bağlantısını (Amerikan: "-us", İngiliz: "-uk") indirir.</summary>
+        private async Task<(byte[] Bytes, string Ext)?> TryFreeDictionaryAsync(HttpClient client, string word, string accent, CancellationToken ct)
+        {
+            using var response = await client.GetAsync("https://api.dictionaryapi.dev/api/v2/entries/en/" + Uri.EscapeDataString(word), ct);
+            if (!response.IsSuccessStatusCode) return null;
+            using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
+            if (doc.RootElement.ValueKind != JsonValueKind.Array) return null;
+
+            var urls = new List<string>();
+            foreach (var entry in doc.RootElement.EnumerateArray())
+            {
+                if (!entry.TryGetProperty("phonetics", out var phonetics) || phonetics.ValueKind != JsonValueKind.Array) continue;
+                foreach (var phonetic in phonetics.EnumerateArray())
+                    if (phonetic.TryGetProperty("audio", out var audio) && audio.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(audio.GetString()))
+                        urls.Add(audio.GetString()!.Trim());
+            }
+
+            bool Has(string url, params string[] tags) => tags.Any(t => url.Contains(t, StringComparison.OrdinalIgnoreCase));
+            var chosen = accent == WordAudioIndex.Us
+                ? urls.FirstOrDefault(u => Has(u, "-us.", "/us/")) ?? urls.FirstOrDefault(u => !Has(u, "-uk.", "-gb.", "-au.", "/uk/", "/gb/", "/au/"))
+                : urls.FirstOrDefault(u => Has(u, "-uk.", "-gb.", "/uk/", "/gb/"));
+            if (chosen is null) return null;
+            if (chosen.StartsWith("//")) chosen = "https:" + chosen;
+            if (!Uri.TryCreate(chosen, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps || !AllowedAudioHosts.Contains(uri.Host)) return null;
+
+            var ext = Path.GetExtension(uri.AbsolutePath).ToLowerInvariant();
+            if (ext is not (".mp3" or ".ogg" or ".oga")) ext = ".mp3";
+            using var audioResponse = await client.GetAsync(uri, ct);
+            if (!audioResponse.IsSuccessStatusCode) return null;
+            var bytes = await audioResponse.Content.ReadAsByteArrayAsync(ct);
+            return bytes.Length is < 500 or > 3_000_000 ? null : (bytes, ext);
         }
 
         private static string? ResolveFolder(string configured)
