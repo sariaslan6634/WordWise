@@ -7,6 +7,7 @@ using WordWise.Application.Common.Models;
 using WordWise.Application.Features.Clips.Commands.ReportClip;
 using WordWise.Application.Features.Clips.Dtos;
 using WordWise.Application.Features.Clips.Commands.SaveClip;
+using WordWise.Application.Features.Clips.Queries.GetClipsFromVideo;
 using WordWise.Application.Features.Clips.Queries.GetLearnerClips;
 using WordWise.Application.Features.Clips.Queries.GetSavedClips;
 using WordWise.Application.Features.Clips.Services;
@@ -28,6 +29,16 @@ namespace WordWise.WebAPI.Controllers
             var clips = await _mediator.Send(new GetLearnerClipsQuery(CurrentUserId, count, savedOnly), cancellationToken);
             await _backfiller.FillAsync(clips, cancellationToken);
             return Ok(ApiResponse<List<LearnerClipDto>>.Ok(clips));
+        }
+
+        /// <summary>Öğrencinin seçtiği YouTube videosundan alıştırma cümleleri (yazma alıştırması için).</summary>
+        [HttpPost("from-video")]
+        [ProducesResponseType(typeof(ApiResponse<List<LearnerClipDto>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> FromVideo([FromBody] GenerateClipsFromVideoDto request, CancellationToken cancellationToken)
+        {
+            var clips = await _mediator.Send(new GetClipsFromVideoQuery(CurrentUserId, request.Url), cancellationToken);
+            return Ok(ApiResponse<List<LearnerClipDto>>.Ok(clips, $"{clips.Count} cümle bulundu."));
         }
 
         /// <summary>Kullanıcının kaydettiği klipler (en son kaydedilen üstte).</summary>

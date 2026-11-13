@@ -140,3 +140,15 @@ The 480p QC change, dark theme, volume/replay UI, Wiktionary importer and pronun
   4. Deneme: `echo "did" | Data/piper/venv/Scripts/piper.exe -m Data/piper/voices/en_US-lessac-medium.onnx -f test.wav` (test.wav'ı çal)
   5. `WordWise.WebAPI/appsettings.Development.json` içine `"WordAudio": { "TtsExecutable": "<tam yol>\\Data\\piper\\venv\\Scripts\\piper.exe", "TtsModel": "<tam yol>\\Data\\piper\\voices\\en_US-lessac-medium.onnx" }` ekle, API'yi yeniden başlat.
 - Lisans: güncel Piper (`piper-tts`, OHF-Voice/piper1-gpl) GPL-3.0; ayrı süreç olarak çağrıldığı için proje kodunu etkilemez ama ticari yayında yine de kontrol et. Ses modelinin lisansı modelin kartında yazar (canlıya çıkmadan kontrol et).
+
+## Ertelenenler / Yapılacaklar (TODO)
+- [ ] **Telaffuz sesi herkes için çalışsın:** Kaydı olmayan kelimelerde (örn. `did`, `challenges`) ses şu an tarayıcının sesli okumasına (speechSynthesis) bağlı; kullanıcının bilgisayarında/tarayıcısında İngilizce ses yoksa (özellikle Brave) Türkçe okur ya da susar. Geliştirici bilgisayarında İngilizce ses paketi kurularak geçici çözüldü. Kalıcı çözüm: sunucuda ses üretimi (Piper kodu hazır, `WordAudio:TtsExecutable/TtsModel` ayarlarıyla açılır, kurulum notları yukarıda) ya da bulut TTS; ya da önceden üretilmiş ses dosyaları.
+- [ ] Admin: öğrenci klip bildirimlerini işleme ekranı.
+- [ ] Mod 2: boşluk doldurma.
+- [ ] İsteğe bağlı: `--freq-file` ile kalan CEFR'ler, defterde CEFR filtresi, silinen kelimede "geri al" iyileştirmeleri.
+- [ ] Eski kliplerde zamanlama kayması: tahmini kelime zamanlı yayındaki klipleri kaldırmak için SQL notu yukarıda ("Listening: kaynak bilgisi…" bölümü).
+
+## Writing (yazma / dikte alıştırması)
+- `/learn/writing`: klip üstte oynar (altyazı yok, aynı `SyncedCaptionPlayer` cinema oynatıcı: ses, tekrar, tam ekran), altta kullanıcı duyduğu cümleyi yazar. Harf harf değerlendirme: doğru = yeşil, yanlış = kırmızı, ipucu harfi = turuncu. İpucu hakkı klip başına 3 (ilk hatalı/eksik harfi doldurur). Süre yok, video tekrar oynatılabilir. Cümle (ipuçları dahil) doğru olunca 1,6 sn sonra sonraki klibe geçer; "Atla" butonu var. Kaydet butonu yok.
+- Kaynak seçimi: "Bizim klipler" (rastgele yayındaki klipler; videonun kendi altyazısı olanlar cevabı gösterdiği için elenir) ya da "Kendi YouTube videom": `POST api/Clips/from-video {url}` (`GetClipsFromVideoQuery`) — videodan klip yoksa `ClipGenerator` ile üretir (yayınlanmaz, başkalarına gösterilmez), kalite kontrolünden geçenleri döner; daha önce üretilmişse yeniden üretmez. Not: her yeni video YouTube API/altyazı çekimi kotası harcar.
+- Mantık `frontend/lib/dictation.ts` (saf fonksiyonlar: cümleyi ayırma, harf değerlendirme, ipucu, giriş düzenleme; büyük/küçük harf, aksan ve ’ farkı yok sayılır; noktalama yazılmaz). Testler: `ClipsFromVideoTests`. Derlenmedi/çalıştırılmadı (dictation.ts mantığı node ile denendi).
