@@ -130,3 +130,13 @@ The 480p QC change, dark theme, volume/replay UI, Wiktionary importer and pronun
 - Panel: anlam, tür, CEFR, IPA, örnekler, eş anlamlılar, Kaydet, "Kelime sayfasını aç". Derlenmedi/çalıştırılmadı.
 - Ses eksikse: `GET api/WordAudio/{accent}/{word}` yerel klasörde yoksa `IWordAudioService.FindOrFetchAsync` ile Wikimedia Commons'tan (`En-us-<kelime>.ogg`, gb için `En-gb-`/`En-uk-`) indirip `Data/wiktionary-audios/fetched/` altına önbellekler (bulunamayanlar 6 saat tekrar denenmez; sunucunun internete çıkması gerekir). Hâlâ yoksa kelime panelinde "Bu kelime için ses kaydı bulunamadı." yazar. Not: kelime sayfasındaki US/UK butonları yalnızca yerel/önceden indirilmiş kayıtlara göre gösterilir.
 - Ses indirme sırası (yerelde yoksa): Commons `En-us/gb/uk-<kelime>.ogg` → Free Dictionary API'nin ses bağlantısı (api.dictionaryapi.dev, upload.wikimedia.org, ssl.gstatic.com ile sınırlı). İndirme istemci vazgeçse de sürer (aynı kelime için tek indirme paylaşılır); sonuçlar `fetched/` altında kalır. Günlükte `[WordAudio]` satırları indirmenin nerede takıldığını gösterir.
+
+## Sunucuda ses üretimi (Piper) — kurulum
+- Kayıt ne yerelde, ne Commons'ta, ne Free Dictionary'de varsa `WordAudioService` yerel bir TTS programıyla (Piper) WAV üretir ve `Data/wiktionary-audios/fetched/En-us-<kelime>.wav` olarak saklar (her kelime bir kez üretilir). Ayarlar `WordAudio` bölümünde: `TtsExecutable`, `TtsModel` (US .onnx), isteğe bağlı `TtsModelGb`, `TtsArguments` (varsayılan `-m {model} -f {output}`; metin stdin'den verilir). Ayarlar boşsa üretim kapalıdır, sistem tarayıcı sesine düşer.
+- Windows kurulumu (Git Bash, proje kök klasöründe; `Data/` git'e girmez):
+  1. `py -m venv Data/piper/venv`
+  2. `Data/piper/venv/Scripts/python.exe -m pip install piper-tts`
+  3. `mkdir -p Data/piper/voices && cd Data/piper/voices && ../venv/Scripts/python.exe -m piper.download_voices en_US-lessac-medium && cd ../../..` (`.onnx` ve `.onnx.json` dosyaları oluşur)
+  4. Deneme: `echo "did" | Data/piper/venv/Scripts/piper.exe -m Data/piper/voices/en_US-lessac-medium.onnx -f test.wav` (test.wav'ı çal)
+  5. `WordWise.WebAPI/appsettings.Development.json` içine `"WordAudio": { "TtsExecutable": "<tam yol>\\Data\\piper\\venv\\Scripts\\piper.exe", "TtsModel": "<tam yol>\\Data\\piper\\voices\\en_US-lessac-medium.onnx" }` ekle, API'yi yeniden başlat.
+- Lisans: güncel Piper (`piper-tts`, OHF-Voice/piper1-gpl) GPL-3.0; ayrı süreç olarak çağrıldığı için proje kodunu etkilemez ama ticari yayında yine de kontrol et. Ses modelinin lisansı modelin kartında yazar (canlıya çıkmadan kontrol et).

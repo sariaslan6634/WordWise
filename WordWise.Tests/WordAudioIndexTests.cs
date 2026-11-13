@@ -12,6 +12,7 @@ public class WordAudioIndexTests
     [InlineData("En-uk-beautiful.oga", "beautiful", "gb")]
     [InlineData("En-gb-Jam_%28fruit_spread%29.ogg", "jam", "gb")]
     [InlineData("En-us-ice_cream.mp3", "ice cream", "us")]
+    [InlineData("En-us-did.wav", "did", "us")]
     public void Parses_word_and_accent_from_file_name(string file, string word, string accent)
     {
         var entry = WordAudioIndex.Parse(@"D:\audio\" + file);

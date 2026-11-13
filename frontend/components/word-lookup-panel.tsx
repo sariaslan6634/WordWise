@@ -54,8 +54,8 @@ export default function WordLookupPanel({ word, playKey, onClose }: { word: stri
           if (!value) { audio.pause(); audio.removeAttribute("src"); } // yavaş/yanıtsız sunucuyu bekleme, sıradaki kaynağa geç
           resolve(value);
         };
-        // Sunucu kaydı internetten indiriyor olabilir: 3 sn içinde başlamazsa sıradaki kaynağa geç (indirme arka planda sürer, sonraki tıklamada hazır olur).
-        const timeout = setTimeout(() => finish(false), 3000);
+        // Sunucu kaydı internetten indiriyor olabilir: 6 sn içinde başlamazsa sıradaki kaynağa geç (indirme arka planda sürer, sonraki tıklamada hazır olur).
+        const timeout = setTimeout(() => finish(false), 6000);
         audio.addEventListener("playing", () => finish(true), { once: true });
         audio.addEventListener("error", () => finish(false), { once: true });
         audio.play().catch(() => finish(false));

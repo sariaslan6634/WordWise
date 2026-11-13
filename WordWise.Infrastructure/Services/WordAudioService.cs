@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
@@ -19,12 +20,14 @@ namespace WordWise.Infrastructure.Services
         private readonly Lazy<string?> _folder;
         private readonly IHttpClientFactory _httpFactory;
         private readonly ILogger<WordAudioService> _logger;
+        private readonly WordAudioSettings _settings;
         private readonly ConcurrentDictionary<string, DateTime> _misses = new();
         private readonly ConcurrentDictionary<string, Task<WordAudioEntry?>> _inflight = new();
 
         public WordAudioService(IOptions<WordAudioSettings> options, ILogger<WordAudioService> logger, IHttpClientFactory httpFactory)
         {
             _httpFactory = httpFactory;
+            _settings = options.Value;
             _logger = logger;
             _folder = new Lazy<string?>(() => ResolveFolder(options.Value.Folder), LazyThreadSafetyMode.ExecutionAndPublication);
             _index = new Lazy<WordAudioIndex>(() =>
@@ -73,6 +76,7 @@ namespace WordWise.Infrastructure.Services
         {
             var cancellationToken = CancellationToken.None;
 
+            var networkFailed = false;
             var baseName = key.Replace(' ', '_');
             var names = accent == WordAudioIndex.Us ? new[] { $"En-us-{baseName}.ogg" } : new[] { $"En-gb-{baseName}.ogg", $"En-uk-{baseName}.ogg" };
             try
@@ -119,13 +123,72 @@ namespace WordWise.Infrastructure.Services
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException or JsonException)
             {
                 _logger.LogWarning("[WordAudio] {Word} ({Accent}) internetten alınamadı: {Error}", key, accent, ex.Message);
-                // Ağ hatası/zaman aşımı: 10 dakika boyunca tekrar deneme (her tıklamada kullanıcıyı bekletme).
-                _misses[missKey] = DateTime.UtcNow - MissRetry + TimeSpan.FromMinutes(10);
-                return null;
+                networkFailed = true; // internet yok: yine de yerel TTS denenir
             }
 
-            _misses[missKey] = DateTime.UtcNow;
+            // Hiçbir internet kaynağında yok: yerel metin-okuma programı kuruluysa sesi kendimiz üretip saklarız.
+            var synthesized = await TrySynthesizeAsync(key, accent, folder);
+            if (synthesized is not null) return synthesized;
+
+            // Ağ hatasında 10 dakika, kesin "yok" cevabında 6 saat tekrar denenmez (her tıklamada kullanıcıyı bekletme).
+            _misses[missKey] = networkFailed ? DateTime.UtcNow - MissRetry + TimeSpan.FromMinutes(10) : DateTime.UtcNow;
             return null;
+        }
+
+        /// <summary>Piper gibi yerel bir TTS programıyla kelimeyi WAV olarak üretir ve klasöre kaydeder.</summary>
+        private async Task<WordAudioEntry?> TrySynthesizeAsync(string key, string accent, string folder)
+        {
+            var model = accent == WordAudioIndex.Us ? _settings.TtsModel : _settings.TtsModelGb;
+            if (string.IsNullOrWhiteSpace(_settings.TtsExecutable) || string.IsNullOrWhiteSpace(model)) return null;
+
+            var dir = Path.Combine(folder, "fetched");
+            Directory.CreateDirectory(dir);
+            var finalPath = Path.Combine(dir, $"En-{accent}-{key.Replace(' ', '_')}.wav");
+            var tempPath = Path.Combine(dir, $"tts-{Guid.NewGuid():N}.tmp");
+            try
+            {
+                var psi = new ProcessStartInfo(_settings.TtsExecutable)
+                {
+                    RedirectStandardInput = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                };
+                foreach (var token in _settings.TtsArguments.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+                    psi.ArgumentList.Add(token.Replace("{model}", model).Replace("{output}", tempPath));
+
+                using var process = Process.Start(psi);
+                if (process is null) return null;
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                var stdout = process.StandardOutput.ReadToEndAsync(timeout.Token);
+                var stderr = process.StandardError.ReadToEndAsync(timeout.Token);
+                await process.StandardInput.WriteAsync(key);
+                process.StandardInput.Close();
+                await process.WaitForExitAsync(timeout.Token);
+                await Task.WhenAll(stdout, stderr);
+
+                if (process.ExitCode != 0 || !File.Exists(tempPath) || new FileInfo(tempPath).Length < 1000)
+                {
+                    _logger.LogWarning("[WordAudio] TTS {Word} ({Accent}) başarısız (çıkış {Code}): {Error}", key, accent, process.ExitCode, (await stderr).Trim());
+                    return null;
+                }
+                File.Move(tempPath, finalPath, overwrite: true);
+                var entry = WordAudioIndex.Parse(finalPath);
+                if (entry is null) return null;
+                _index.Value.Add(entry);
+                _logger.LogInformation("[WordAudio] {Word} ({Accent}) yerel TTS ile üretildi.", key, accent);
+                return _index.Value.Find(key, accent);
+            }
+            catch (Exception ex) when (ex is IOException or System.ComponentModel.Win32Exception or OperationCanceledException or InvalidOperationException)
+            {
+                _logger.LogWarning("[WordAudio] TTS çalıştırılamadı: {Error}", ex.Message);
+                return null;
+            }
+            finally
+            {
+                try { if (File.Exists(tempPath)) File.Delete(tempPath); } catch (IOException) { /* sorun değil */ }
+            }
         }
 
 

@@ -17,7 +17,7 @@ namespace WordWise.Application.Features.WordAudio
         private static readonly Regex NameRegex = new(@"^en-(us|gb|uk)-(.+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex QualifierRegex = new(@"\s*\([^)]*\)\s*$", RegexOptions.Compiled);
         private static readonly Regex PosSuffixRegex = new(@"-(noun|verb|adjective|adj|adverb|adv|preposition|pronoun)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        private static readonly string[] Extensions = { ".mp3", ".ogg", ".oga" };
+        private static readonly string[] Extensions = { ".mp3", ".ogg", ".oga", ".wav" };
 
         private readonly System.Collections.Concurrent.ConcurrentDictionary<(string Word, string Accent), WordAudioEntry> _entries = new();
 
@@ -63,8 +63,8 @@ namespace WordWise.Application.Features.WordAudio
             rest = rest.Trim();
             if (rest.Length == 0) return null;
 
-            var formatRank = ext == ".mp3" ? 0 : ext == ".ogg" ? 1 : 2;
-            var contentType = ext == ".mp3" ? "audio/mpeg" : "audio/ogg";
+            var formatRank = ext == ".mp3" ? 0 : ext == ".ogg" ? 1 : ext == ".oga" ? 2 : 3;
+            var contentType = ext == ".mp3" ? "audio/mpeg" : ext == ".wav" ? "audio/wav" : "audio/ogg";
             return new WordAudioEntry(rest, accent, path, contentType, variant * 10 + formatRank);
         }
 
