@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import SyncedCaptionPlayer from "@/components/synced-caption-player";
-import WordLookupPanel from "@/components/word-lookup-panel";
+import WordLookupPanel, { warmUpVoices } from "@/components/word-lookup-panel";
 import type { ClipReportReason, LearnerClip } from "@/lib/contracts";
 
 type Envelope<T> = { success?: boolean; message?: string; data?: T };
@@ -80,6 +80,7 @@ export default function ClipPractice({ initialClips, initialSavedOnly = false }:
 
   useEffect(() => {
     setSettings(loadSettings());
+    warmUpVoices();
   }, []);
 
   // Klip değişince açık kelime penceresini kapat.

@@ -9,6 +9,11 @@ import type { WordDetail } from "@/lib/contracts";
 
 type State = { status: "loading" } | { status: "found"; word: WordDetail } | { status: "missing" } | { status: "error"; detail: string };
 
+/** Chrome ses listesini tembel yükler; sayfa açılırken bir kez çağırınca tıklama anında hazır olur. */
+export function warmUpVoices() {
+  try { window.speechSynthesis?.getVoices(); } catch { /* sesli okuma yok */ }
+}
+
 /**
  * Altyazıda tıklanan kelimenin anlamını sağda açılan pencerede gösterir ve kelimeyi bir kez okur.
  * Okuma sırası: kelimenin Amerikan/İngiliz kaydı → tarayıcının İngilizce sesi → ana biçimin kaydı. Kapatınca (ya da kelime değişince) ses durur.
@@ -59,13 +64,22 @@ export default function WordLookupPanel({ word, playKey, onClose }: { word: stri
       voices = await new Promise<SpeechSynthesisVoice[]>((resolve) => {
         const done = () => resolve(synth.getVoices());
         synth.addEventListener("voiceschanged", done, { once: true });
-        setTimeout(done, 800);
+        setTimeout(done, 2000);
       });
     }
-    const english = voices.filter((voice) => /^en[-_]/i.test(voice.lang));
+    const english = voices.filter((voice) => /^en[-_]/i.test(voice.lang) || /english/i.test(voice.name));
     const us = english.filter((voice) => /^en[-_]US$/i.test(voice.lang));
     const voice = us.find((item) => /natural|online|google|aria|jenny|samantha/i.test(item.name)) ?? us[0] ?? english[0];
-    if (!voice) return false;
+    if (!voice) {
+      if (voices.length > 0) return false; // sesler yüklü ama İngilizce yok: Türkçe sesle okuma
+      // Liste hiç gelmedi (tarayıcı bildirmedi): son çare olarak dil etiketiyle dene.
+      if (run !== runRef.current) return true;
+      const fallback = new SpeechSynthesisUtterance(text);
+      fallback.lang = "en-US";
+      fallback.rate = 0.9;
+      synth.speak(fallback);
+      return true;
+    }
     if (run !== runRef.current) return true;
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.voice = voice;
