@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 
 export type CaptionWord = { text: string; start: number; end: number };
 
@@ -82,6 +82,7 @@ export default function SyncedCaptionPlayer({
   showCaption = true,
   sync = true,
   onWordClick,
+  overlay,
 }: {
   videoId: string;
   startSec: number;
@@ -106,6 +107,8 @@ export default function SyncedCaptionPlayer({
   sync?: boolean;
   /** Verilirse altyazıdaki kelimeler tıklanabilir olur; üzerine gelince video durur, tıklayınca bu çağrılır. */
   onWordClick?: (word: string) => void;
+  /** Sinema görünümünde videonun üstüne (altyazı konumuna) çizilecek içerik; tıklamaları engellemez. */
+  overlay?: ReactNode;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YtPlayer | null>(null);
@@ -380,6 +383,7 @@ export default function SyncedCaptionPlayer({
       <div className="scp-video" ref={stageRef}>
         <div ref={hostRef} className="scp-host" />
         {cinema && showCaption && started && !ended && caption}
+        {cinema && overlay && <div className="scp-overlay">{overlay}</div>}
         {ended && (
           <div className="scp-end">
             <button type="button" onClick={replay} aria-label="Cümleyi baştan oynat" title="Cümleyi baştan oynat"><span aria-hidden="true">↻</span></button>
