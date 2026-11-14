@@ -131,6 +131,8 @@ export default function SyncedCaptionPlayer({
   const lastTimeRef = useRef(0); // önceki karedeki süre: Shorts'un kendi kendine başa sarmasını yakalamak için
   const seekGuardRef = useRef(false); // başlangıçtan önce başlayan oynatma bir kez düzeltilir
   const armedRef = useRef(false); // oynatma bitiş saniyesinden uzaklaşınca true olur; tekrar başlarken eski bitişin yeniden sayılmasını önler
+  const restartingRef = useRef(false); // tekrar için yeniden yüklendi, yeni oynatma henüz başlamadı: eski bitiş olayları sayılmaz
+  const restartAtRef = useRef(0);
   const loopsRef = useRef(loops);
   const onFinishedRef = useRef(onFinished);
   const autoPlayRef = useRef(autoPlay);
@@ -188,6 +190,7 @@ export default function SyncedCaptionPlayer({
     let mount: HTMLDivElement | null = null;
     playsRef.current = 0;
     finishedRef.current = false;
+    restartingRef.current = false;
     armedRef.current = false;
     lastTimeRef.current = 0;
     seekGuardRef.current = false;
@@ -197,6 +200,8 @@ export default function SyncedCaptionPlayer({
     // Klip bitti: tekrar kaldıysa baştan oynat, yoksa bitti haberini ver.
     const handleEnd = () => {
       if (finishedRef.current || !armedRef.current) return;
+      // Yeniden yükleme sonrası gecikmeyle gelen eski "bitti" olayı ikinci bir oynatma gibi sayılmasın (yükleme 4 sn içinde başlamazsa korumayı bırak).
+      if (restartingRef.current && Date.now() - restartAtRef.current < 4000) return;
       armedRef.current = false;
       finishedRef.current = true;
       playsRef.current += 1;
@@ -204,6 +209,8 @@ export default function SyncedCaptionPlayer({
         setPlay(playsRef.current + 1);
         finishedRef.current = false;
         seekGuardRef.current = false;
+        restartingRef.current = true;
+        restartAtRef.current = Date.now();
         playerRef.current?.loadVideoById({ videoId, startSeconds: startSec, endSeconds: endSec });
       } else {
         // Klip bitti: videoyu başa sarılmış, durmuş hâlde hazırla. Oynat'a basınca baştan oynar (kaldığı yerden değil).
@@ -274,7 +281,7 @@ export default function SyncedCaptionPlayer({
           onStateChange: (event) => {
             if (event.data === 0) handleEnd();
             playingRef.current = event.data === 1;
-            if (event.data === 1) { setStarted(true); setEnded(false); }
+            if (event.data === 1) { setStarted(true); setEnded(false); restartingRef.current = false; }
             // Klip bittikten sonra kullanıcı tekrar oynata bastı: sayaçları sıfırla, baştan oynasın.
             if (event.data === 1 && finishedRef.current) {
               playsRef.current = 0;
@@ -325,6 +332,7 @@ export default function SyncedCaptionPlayer({
     seekGuardRef.current = false;
     lastTimeRef.current = 0;
     setPlay(1);
+    restartingRef.current = false;
     playerRef.current?.loadVideoById({ videoId, startSeconds: startSec, endSeconds: endSec });
   }
 
