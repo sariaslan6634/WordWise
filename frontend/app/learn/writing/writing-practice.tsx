@@ -29,6 +29,7 @@ export default function WritingPractice({ initialClips }: { initialClips: Learne
   const [custom, setCustom] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [url, setUrl] = useState("");
+  const [playNo, setPlayNo] = useState(1);
   const [repeat, setRepeat] = useState(false);
   const [pick, setPick] = useState<"auto" | "all">("auto");
   const [loading, setLoading] = useState(false);
@@ -191,6 +192,7 @@ export default function WritingPractice({ initialClips }: { initialClips: Learne
         autoPlay={hasInteracted || index > 0}
         showCaption={false}
         overlay={subtitle}
+        onPlayChange={setPlayNo}
       />
 
       <div className={`write-panel${done ? " is-done" : ""}`}>
@@ -211,6 +213,7 @@ export default function WritingPractice({ initialClips }: { initialClips: Learne
 
         <div className="write-actions">
           <button type="button" className="cinema-button write-hint" onClick={takeHint} disabled={done}>💡 İpucu</button>
+          {repeat && !done && <span className="write-plays" title="Kaçıncı oynatma">▶ {Math.min(playNo, 3)}/3</span>}
           <span className="write-legend"><i className="is-correct"/>doğru <i className="is-hint"/>ipucu <i className="is-wrong"/>yanlış</span>
           <span className="write-progress">{index + 1} / {clips.length}{done ? " · Doğru! 🎉" : ""}</span>
           <button type="button" className="cinema-button" onClick={() => goTo(index + 1)}>{done ? "Sonraki →" : "Atla →"}</button>

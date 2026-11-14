@@ -15,8 +15,8 @@ export type LetterSlot = { char: string; status: LetterStatus };
 
 const EDGE = /^([^\p{L}\p{N}]*)(.*?)([^\p{L}\p{N}]*)$/u;
 const SENTENCE_END = /[.!?…]["'”’)\]]*$/;
-/** Kullanıcının, kelimenin gerçek uzunluğundan fazla kaç harf yazabileceği (kırmızı fazlalık olarak gösterilir). */
-export const MAX_EXTRA = 2;
+/** Kullanıcının, kelimenin gerçek uzunluğundan fazla kaç harf yazabileceği (0: 4 harfli kelimeye en çok 4 harf yazılır). */
+export const MAX_EXTRA = 0;
 
 const ABBREVIATION = /^(mr|mrs|ms|dr|prof|st|jr|sr|vs|mt)$/i;
 

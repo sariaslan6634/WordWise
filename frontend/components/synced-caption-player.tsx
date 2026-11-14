@@ -83,6 +83,7 @@ export default function SyncedCaptionPlayer({
   sync = true,
   onWordClick,
   overlay,
+  onPlayChange,
 }: {
   videoId: string;
   startSec: number;
@@ -109,12 +110,17 @@ export default function SyncedCaptionPlayer({
   onWordClick?: (word: string) => void;
   /** Sinema görünümünde videonun üstüne (altyazı konumuna) çizilecek içerik; tıklamaları engellemez. */
   overlay?: ReactNode;
+  /** Kaçıncı oynatmada olunduğu değiştikçe çağrılır (1'den başlar). */
+  onPlayChange?: (play: number) => void;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YtPlayer | null>(null);
   const [time, setTime] = useState(startSec);
   const [error, setError] = useState("");
   const [play, setPlay] = useState(1);
+  const onPlayChangeRef = useRef(onPlayChange);
+  onPlayChangeRef.current = onPlayChange;
+  useEffect(() => { onPlayChangeRef.current?.(play); }, [play]);
   const [volume, setVolume] = useState(100);
   const [muted, setMuted] = useState(false);
   const lastVolumeRef = useRef(70);
@@ -127,7 +133,10 @@ export default function SyncedCaptionPlayer({
   const armedRef = useRef(false); // oynatma bitiş saniyesinden uzaklaşınca true olur; tekrar başlarken eski bitişin yeniden sayılmasını önler
   const loopsRef = useRef(loops);
   const onFinishedRef = useRef(onFinished);
-  useEffect(() => { loopsRef.current = loops; onFinishedRef.current = onFinished; });
+  const autoPlayRef = useRef(autoPlay);
+  loopsRef.current = loops; // render sırasında güncellenir: tekrar sayısı değişince hemen geçerli olur
+  autoPlayRef.current = autoPlay;
+  useEffect(() => { onFinishedRef.current = onFinished; });
   const stageRef = useRef<HTMLDivElement>(null);
   const [isFs, setIsFs] = useState(false);
   useEffect(() => {
@@ -217,7 +226,7 @@ export default function SyncedCaptionPlayer({
           controls: 1,
           enablejsapi: 1,
           playsinline: 1,
-          autoplay: autoPlay ? 1 : 0,
+          autoplay: autoPlayRef.current ? 1 : 0,
           fs: variant === "cinema" ? 0 : 1, // sinema modunda altyazı videonun üstünde olduğu için tam ekranı biz yönetiriz
           rel: 0,
           start: Math.floor(startSec),
@@ -305,7 +314,7 @@ export default function SyncedCaptionPlayer({
       playerRef.current = null;
       mount?.remove();
     };
-  }, [videoId, startSec, endSec, autoPlay, variant]);
+  }, [videoId, startSec, endSec, variant]); // autoPlay bilerek yok: değişince oynatıcı yeniden kurulup video baştan başlamasın
 
   function replay() {
     setStarted(false);
