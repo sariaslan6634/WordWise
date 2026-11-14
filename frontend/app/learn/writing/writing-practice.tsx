@@ -171,7 +171,8 @@ export default function WritingPractice({ initialClips }: { initialClips: Learne
     if (done) return;
     setHasInteracted(true);
     const prefix = value.split(/\s+/).slice(0, completed).join(" ");
-    const tail = next.replace(/^\s+/, "");
+    // Boşluk yok sayılır: doğru yazılan kelime kutudan kendiliğinden silinir, sıradaki kelimeye geçmek için boşluğa gerek yok; yanlış kelime geçilemez.
+    const tail = next.replace(/\s+/g, "");
     setValue(normalizeInput(prefix ? `${prefix} ${tail}` : tail, words));
   }
 
@@ -285,7 +286,7 @@ export default function WritingPractice({ initialClips }: { initialClips: Learne
           disabled={done}
           aria-label="Duyduğun cümle"
         />
-        <p className="write-note">Özel isimler ve ' - işaretleri otomatik gelir; sadece harfleri yaz.</p>
+        <p className="write-note">Özel isimler ve ' - işaretleri otomatik gelir; boşluk gerekmez, doğru kelime kendiliğinden geçer.</p>
 
         <div className="write-actions">
           <button type="button" className="cinema-button write-hint" onClick={takeHint} disabled={done}>💡 İpucu{hintKeyOn && hintKey ? <kbd className="write-kbd">{hintKey.label}</kbd> : null}</button>
