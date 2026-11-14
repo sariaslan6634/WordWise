@@ -144,3 +144,6 @@ a.cinema-button{display:inline-flex;align-items:center;gap:6px;text-decoration:n
 .write-actions{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-content:center}
 .write-url-input{padding:11px 13px;border-radius:10px;border:1px solid #26332b;background:#0c120f;color:#e8efe9;font:inherit;font-size:14px}
 .write-url-input:focus{outline:2px solid #ffd84a;outline-offset:1px}
+
+.write-sub-letter{min-width:.62em;border-bottom:.1em solid #fff;box-shadow:0 .06em 0 #000,0 .1em .18em rgba(0,0,0,.9)}
+.write-sub-letter.is-fixed,.write-sub-letter.is-auto,.write-sub-letter.is-correct,.write-sub-letter.is-hint,.write-sub-letter.is-wrong{box-shadow:none}

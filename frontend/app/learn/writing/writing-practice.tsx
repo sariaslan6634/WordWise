@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import SyncedCaptionPlayer from "@/components/synced-caption-player";
 import type { LearnerClip } from "@/lib/contracts";
-import { isSentenceCorrect, joinTyped, normalizeInput, parseSentence, revealHint, splitTyped, wordSlots } from "@/lib/dictation";
+import { isSentenceCorrect, isWordCorrect, joinTyped, normalizeInput, parseSentence, revealHint, splitTyped, wordSlots } from "@/lib/dictation";
 
 type Envelope<T> = { success?: boolean; message?: string; data?: T };
 
@@ -46,6 +46,22 @@ export default function WritingPractice({ initialClips }: { initialClips: Learne
   const typed = useMemo(() => splitTyped(value, words), [value, words]);
   const correct = words.length > 0 && isSentenceCorrect(words, typed);
 
+  // Baştan itibaren doğru yazılmış kelimeler kutudan silinir (altyazıda kalır); kutuda sadece sıradaki kelime(ler) görünür.
+  const completed = useMemo(() => {
+    let count = 0;
+    for (let i = 0; i < words.length; i += 1) {
+      if (words[i].auto) continue;
+      if (!isWordCorrect(words[i], typed[i] ?? "")) break;
+      count += 1;
+    }
+    return count;
+  }, [words, typed]);
+  const shown = useMemo(() => {
+    const parts = value.split(/\s+/);
+    if (parts.length <= completed) return "";
+    return parts.slice(completed).join(" ");
+  }, [value, completed]);
+
   const clearTimer = useCallback(() => {
     if (timer.current) { clearTimeout(timer.current); timer.current = null; }
   }, []);
@@ -81,7 +97,9 @@ export default function WritingPractice({ initialClips }: { initialClips: Learne
   function onChange(next: string) {
     if (done) return;
     setHasInteracted(true);
-    setValue(normalizeInput(next, words));
+    const prefix = value.split(/\s+/).slice(0, completed).join(" ");
+    const tail = next.replace(/^\s+/, "");
+    setValue(normalizeInput(prefix ? `${prefix} ${tail}` : tail, words));
   }
 
   // İpucu sınırsız (ileride bir şeye bağlanacak).
@@ -170,7 +188,7 @@ export default function WritingPractice({ initialClips }: { initialClips: Learne
           ref={inputRef}
           className="write-input"
           type="text"
-          value={value}
+          value={shown}
           onChange={(event) => onChange(event.target.value)}
           onKeyDown={(event) => { if (event.key === "Enter" && done) { clearTimer(); goTo(index + 1); } }}
           placeholder="Duyduğunu yaz…"
