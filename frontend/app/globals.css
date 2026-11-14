@@ -147,3 +147,5 @@ a.cinema-button{display:inline-flex;align-items:center;gap:6px;text-decoration:n
 
 .write-sub-letter{min-width:.62em;border-bottom:.1em solid #fff;box-shadow:0 .06em 0 #000,0 .1em .18em rgba(0,0,0,.9)}
 .write-sub-letter.is-fixed,.write-sub-letter.is-auto,.write-sub-letter.is-correct,.write-sub-letter.is-hint,.write-sub-letter.is-wrong{box-shadow:none}
+
+.write-sub-letter,.write-sub-letter.is-fixed,.write-sub-letter.is-auto,.write-sub-letter.is-correct,.write-sub-letter.is-hint,.write-sub-letter.is-wrong{box-shadow:none}
