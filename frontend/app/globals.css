@@ -165,3 +165,4 @@ a.cinema-button{display:inline-flex;align-items:center;gap:6px;text-decoration:n
 .write-key-error{flex-basis:100%;margin:0;text-align:right;font-size:12px;color:#ff9a8a}
 .write-kbd{margin-left:8px;padding:1px 7px;border:1px solid #3a4d42;border-bottom-width:2px;border-radius:6px;background:#0c120f;color:#cfdad2;font:600 11px system-ui,sans-serif}
 .write-repeat input:disabled{opacity:.45;cursor:not-allowed}
+.write-tools{flex-direction:column;align-items:flex-end;flex-wrap:nowrap;gap:10px}.write-shortcut{justify-content:flex-end}.write-key-error{flex-basis:auto}
