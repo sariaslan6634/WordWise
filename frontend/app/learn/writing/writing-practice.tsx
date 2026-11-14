@@ -194,7 +194,7 @@ export default function WritingPractice({ initialClips }: { initialClips: Learne
       />
 
       <div className={`write-panel${done ? " is-done" : ""}`}>
-        <label className="write-repeat"><input type="checkbox" checked={repeat} onChange={(event) => toggleRepeat(event.target.checked)}/> Videoyu 3 kere oynat</label>
+        <label className="cinema-switch write-repeat"><input type="checkbox" role="switch" checked={repeat} onChange={(event) => toggleRepeat(event.target.checked)}/><span>Videoyu 3 kere oynat</span></label>
         <input
           ref={inputRef}
           className="write-input"
