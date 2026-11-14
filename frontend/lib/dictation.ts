@@ -23,9 +23,46 @@ const ABBREVIATION = /^(mr|mrs|ms|dr|prof|st|jr|sr|vs|mt)$/i;
 const isLetter = (char: string) => /[\p{L}\p{N}]/u.test(char);
 const isUpper = (char: string) => char !== char.toLowerCase() && char === char.toUpperCase();
 
-/** Harf karşılaştırması: büyük/küçük harf, aksan ve kıvrık tırnak farkı yok sayılır. */
+/** Türkçe klavyede yazılan ı / İ İngilizce i olarak kabul edilir (İngilizcede noktasız ı ya da noktalı İ yoktur). */
+const turkishI = (value: string) => value.replace(/[ıİ]/g, "i");
+
+/** Harf karşılaştırması: büyük/küçük harf, aksan, kıvrık tırnak ve Türkçe ı/İ farkı yok sayılır. */
 export function fold(value: string): string {
-  return value.replace(/[’‘]/g, "'").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  return turkishI(value).replace(/[’‘]/g, "'").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+}
+
+/** Kutuya yazılan metin sabit biçime çevrilir: hep küçük harf, ı/İ → i. (Büyük/küçük harf altyazıda İngilizce kurallarıyla gösterilir.) */
+export const canonTyped = (value: string) => turkishI(value).toLowerCase();
+
+const I_FORM = /^i(?:'(?:m|ll|ve|d|s))?$/i;
+/** Cümle ortasında bile hep büyük harfle yazılan sık kelimeler (gün, ay, dil, milliyet). "march/may/august" fiil/sıfat olabildiği için yok. */
+const ALWAYS_CAPITAL = new Set([
+  "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+  "january", "february", "april", "june", "july", "september", "october", "november", "december",
+  "english", "american", "british", "spanish", "french", "german", "italian", "chinese", "japanese", "turkish", "russian", "arabic", "korean",
+]);
+const capitalize = (word: string) => word.charAt(0).toUpperCase() + word.slice(1);
+
+/**
+ * İngilizce büyük/küçük harf kuralları: "I" ve I'm/I'll/I've/I'd hep büyük; cümle başı (ilk kelime, . ! ? sonrası,
+ * alıntı tırnağından sonra) büyük; gün/ay/dil adları büyük. Başka harfler değiştirilmez (TED, Jack olduğu gibi kalır).
+ */
+export function fixCase(text: string): string {
+  let previous: { core: string; trail: string } | null = null;
+  return text.replace(/[’‘]/g, "'").trim().split(/\s+/).map((token) => {
+    const match = EDGE.exec(token);
+    if (!match || match[2].length === 0) return token;
+    const [, lead, rawCore, trail] = match;
+    let core = rawCore;
+    const start = previous === null
+      || (/[.!?]["'”)\]]*$/.test(previous.trail) && !ABBREVIATION.test(previous.core))
+      || /["“]/.test(lead);
+    if (I_FORM.test(core)) core = "I" + core.slice(1).toLowerCase();
+    else if (ALWAYS_CAPITAL.has(core.toLowerCase())) core = capitalize(core.toLowerCase());
+    else if (start) core = capitalize(core);
+    previous = { core, trail };
+    return lead + core + trail;
+  }).join(" ");
 }
 
 /**
@@ -35,7 +72,7 @@ export function fold(value: string): string {
  */
 export function parseSentence(text: string): ExpectedWord[] {
   const words: ExpectedWord[] = [];
-  for (const token of text.replace(/[’‘]/g, "'").trim().split(/\s+/)) {
+  for (const token of fixCase(text).split(/\s+/)) {
     const match = EDGE.exec(token);
     if (!match || match[2].length === 0) continue;
     const core = match[2];
@@ -77,7 +114,8 @@ export function joinTyped(words: ExpectedWord[], typed: string[]): string {
  * Giriş kutusuna yazılan metni düzenler: baştaki boşluk silinir, ardışık boşluklar teke iner, kelime sayısı ve her
  * kelimenin uzunluğu sınırlanır. Son kelime tamamlanmadan önce yazılan tek boşluk (sonraki kelimeye geçiş) korunur.
  */
-export function normalizeInput(value: string, words: ExpectedWord[]): string {
+export function normalizeInput(rawValue: string, words: ExpectedWord[]): string {
+  const value = canonTyped(rawValue);
   const parts = value.replace(/^\s+/, "").split(/\s+/);
   const trailingSpace = parts.length > 1 && parts[parts.length - 1] === "";
   if (trailingSpace) parts.pop();
@@ -98,7 +136,7 @@ export function wordSlots(word: ExpectedWord, typed: string, hinted: Set<string>
     if (word.auto) slots.push({ char, status: "auto" });
     else if (j >= actual.length) slots.push({ char: "", status: "empty" });
     else if (fold(actual[j]) !== fold(char)) slots.push({ char: actual[j], status: "wrong" });
-    else slots.push({ char: actual[j], status: hinted.has(`${wordIndex}:${j}`) ? "hint" : "correct" });
+    else slots.push({ char, status: hinted.has(`${wordIndex}:${j}`) ? "hint" : "correct" }); // doğru harf, kullanıcının yazdığı değil kelimenin kendi (doğru büyük/küçük) biçimiyle gösterilir
   }
   for (let j = word.letters.length; j < actual.length; j += 1) slots.push({ char: actual[j], status: "wrong" });
   return slots;

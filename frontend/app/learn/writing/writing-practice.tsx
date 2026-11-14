@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import SyncedCaptionPlayer from "@/components/synced-caption-player";
 import type { LearnerClip } from "@/lib/contracts";
-import { isSentenceCorrect, isWordCorrect, joinTyped, normalizeInput, parseSentence, revealHint, splitTyped, wordSlots } from "@/lib/dictation";
+import { canonTyped, isSentenceCorrect, isWordCorrect, joinTyped, normalizeInput, parseSentence, revealHint, splitTyped, wordSlots } from "@/lib/dictation";
 
 type Envelope<T> = { success?: boolean; message?: string; data?: T };
 
@@ -118,7 +118,7 @@ export default function WritingPractice({ initialClips }: { initialClips: Learne
     const result = revealHint(words, typed);
     if (!result) return;
     setHasInteracted(true);
-    setValue(joinTyped(words, result.typed));
+    setValue(canonTyped(joinTyped(words, result.typed)));
     if (result.key) setHinted((current) => new Set(current).add(result.key!));
     inputRef.current?.focus();
   }
