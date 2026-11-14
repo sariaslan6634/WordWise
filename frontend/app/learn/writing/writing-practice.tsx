@@ -29,6 +29,7 @@ export default function WritingPractice({ initialClips }: { initialClips: Learne
   const [custom, setCustom] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [url, setUrl] = useState("");
+  const [repeat, setRepeat] = useState(false);
   const [pick, setPick] = useState<"auto" | "all">("auto");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -76,6 +77,13 @@ export default function WritingPractice({ initialClips }: { initialClips: Learne
     setDone(false);
     setError("");
   }, [clearTimer]);
+
+  // "3 kere oynat" tercihi tarayıcıda hatırlanır (hafif kişisel tercih; erişilemezse sessizce yok sayılır).
+  useEffect(() => { try { if (localStorage.getItem("writing-repeat") === "1") setRepeat(true); } catch { /* yok say */ } }, []);
+  function toggleRepeat(next: boolean) {
+    setRepeat(next);
+    try { localStorage.setItem("writing-repeat", next ? "1" : "0"); } catch { /* yok say */ }
+  }
 
   // Yeni klipte yazı alanına odaklan.
   useEffect(() => { if (clip && !modalOpen) inputRef.current?.focus(); }, [clip?.id, modalOpen]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -179,13 +187,14 @@ export default function WritingPractice({ initialClips }: { initialClips: Learne
         startSec={clip.startSec}
         endSec={clip.endSec}
         text={clip.text}
-        loops={1}
+        loops={repeat ? 3 : 1}
         autoPlay={hasInteracted || index > 0}
         showCaption={false}
         overlay={subtitle}
       />
 
       <div className={`write-panel${done ? " is-done" : ""}`}>
+        <label className="write-repeat"><input type="checkbox" checked={repeat} onChange={(event) => toggleRepeat(event.target.checked)}/> Videoyu 3 kere oynat</label>
         <input
           ref={inputRef}
           className="write-input"
