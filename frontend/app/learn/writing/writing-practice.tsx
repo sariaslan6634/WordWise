@@ -9,6 +9,18 @@ type Envelope<T> = { success?: boolean; message?: string; data?: T };
 
 const NEXT_DELAY_MS = 1600;
 
+type HintKey = { code: string; label: string };
+const KEY_STORAGE = "writing-hint-key";
+const KEY_ON_STORAGE = "writing-hint-key-on";
+
+const KEY_LABELS: Record<string, string> = {
+  ShiftLeft: "Sol Shift", ShiftRight: "Sağ Shift", ControlLeft: "Sol Ctrl", ControlRight: "Sağ Ctrl",
+  AltLeft: "Sol Alt", AltRight: "Sağ Alt", CapsLock: "Caps Lock", Tab: "Tab", Backquote: "`",
+};
+const keyLabel = (event: KeyboardEvent) => KEY_LABELS[event.code] ?? (event.key.length > 1 ? event.key : event.code);
+/** Yazmayı engelleyecek tuşlar kısayol olamaz: harf/rakam/noktalama/boşluk ile Enter, Backspace, Esc. */
+const isTypingKey = (event: KeyboardEvent) => event.key.length === 1 || ["Enter", "Backspace", "Escape", "Delete"].includes(event.key);
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`/api/backend/api/${path}`, init);
   const body = await response.text();
@@ -30,6 +42,10 @@ export default function WritingPractice({ initialClips }: { initialClips: Learne
   const [modalOpen, setModalOpen] = useState(false);
   const [url, setUrl] = useState("");
   const [playNo, setPlayNo] = useState(1);
+  const [hintKey, setHintKey] = useState<HintKey | null>(null);
+  const [hintKeyOn, setHintKeyOn] = useState(false);
+  const [capturing, setCapturing] = useState(false);
+  const [keyError, setKeyError] = useState("");
   const [repeat, setRepeat] = useState(false);
   const [pick, setPick] = useState<"auto" | "all">("auto");
   const [loading, setLoading] = useState(false);
@@ -86,6 +102,53 @@ export default function WritingPractice({ initialClips }: { initialClips: Learne
     try { localStorage.setItem("writing-repeat", next ? "1" : "0"); } catch { /* yok say */ }
   }
 
+  // İpucu kısayol tuşu ve açık/kapalı tercihi tarayıcıda hatırlanır.
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(KEY_STORAGE) ?? "null") as HintKey | null;
+      if (saved && typeof saved.code === "string" && typeof saved.label === "string") {
+        setHintKey(saved);
+        setHintKeyOn(localStorage.getItem(KEY_ON_STORAGE) !== "0");
+      }
+    } catch { /* yok say */ }
+  }, []);
+  function saveHintKey(next: HintKey) {
+    setHintKey(next); setHintKeyOn(true);
+    try { localStorage.setItem(KEY_STORAGE, JSON.stringify(next)); localStorage.setItem(KEY_ON_STORAGE, "1"); } catch { /* yok say */ }
+  }
+  function toggleHintKey(next: boolean) {
+    setHintKeyOn(next);
+    try { localStorage.setItem(KEY_ON_STORAGE, next ? "1" : "0"); } catch { /* yok say */ }
+  }
+
+  // Tuş atama: bir sonraki tuş kısayol olur (Esc iptal).
+  useEffect(() => {
+    if (!capturing) return;
+    const onKey = (event: KeyboardEvent) => {
+      event.preventDefault(); event.stopPropagation();
+      if (event.repeat) return;
+      if (event.key === "Escape") { setCapturing(false); setKeyError(""); return; }
+      if (isTypingKey(event)) { setKeyError("Harf, rakam ve Enter atanamaz; Shift, Tab, Caps Lock gibi bir tuş seç."); return; }
+      saveHintKey({ code: event.code, label: keyLabel(event) });
+      setCapturing(false); setKeyError("");
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [capturing]);
+
+  // Kısayol tuşu: basınca ipucu verir (kutuya odaklı olmasa da).
+  const takeHintRef = useRef<() => void>(() => undefined);
+  useEffect(() => {
+    if (!hintKeyOn || !hintKey || capturing || modalOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.code !== hintKey.code || event.repeat) return;
+      event.preventDefault();
+      takeHintRef.current();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [hintKeyOn, hintKey, capturing, modalOpen]);
+
   // Yeni klipte yazı alanına odaklan.
   useEffect(() => { if (clip && !modalOpen) inputRef.current?.focus(); }, [clip?.id, modalOpen]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (modalOpen) urlRef.current?.focus(); }, [modalOpen]);
@@ -122,6 +185,8 @@ export default function WritingPractice({ initialClips }: { initialClips: Learne
     if (result.key) setHinted((current) => new Set(current).add(result.key!));
     inputRef.current?.focus();
   }
+
+  takeHintRef.current = takeHint;
 
   async function loadAuto() {
     clearTimer();
@@ -196,7 +261,18 @@ export default function WritingPractice({ initialClips }: { initialClips: Learne
       />
 
       <div className={`write-panel${done ? " is-done" : ""}`}>
-        <label className="cinema-switch write-repeat"><input type="checkbox" role="switch" checked={repeat} onChange={(event) => toggleRepeat(event.target.checked)}/><span>Videoyu 3 kere oynat</span></label>
+        <div className="write-tools">
+          <label className="cinema-switch write-repeat"><input type="checkbox" role="switch" checked={repeat} onChange={(event) => toggleRepeat(event.target.checked)}/><span>Videoyu 3 kere oynat</span></label>
+          <div className="write-shortcut">
+            <label className="cinema-switch write-repeat" title={hintKey ? "Kısayol tuşunu aç/kapat" : "Önce bir tuş ata"}>
+              <input type="checkbox" role="switch" checked={hintKeyOn && !!hintKey} disabled={!hintKey} onChange={(event) => toggleHintKey(event.target.checked)}/><span>İpucu kısayolu</span>
+            </label>
+            <button type="button" className={`cinema-button write-key${capturing ? " is-capturing" : ""}`} onClick={() => { setKeyError(""); setCapturing((value) => !value); }} aria-label="İpucu kısayol tuşunu değiştir">
+              {capturing ? "Bir tuşa bas… (Esc: iptal)" : hintKey ? `⌨ ${hintKey.label} · değiştir` : "⌨ Tuş ata"}
+            </button>
+          </div>
+          {keyError && <p className="write-key-error" role="alert">{keyError}</p>}
+        </div>
         <input
           ref={inputRef}
           className="write-input"
@@ -212,7 +288,7 @@ export default function WritingPractice({ initialClips }: { initialClips: Learne
         <p className="write-note">Özel isimler ve ' - işaretleri otomatik gelir; sadece harfleri yaz.</p>
 
         <div className="write-actions">
-          <button type="button" className="cinema-button write-hint" onClick={takeHint} disabled={done}>💡 İpucu</button>
+          <button type="button" className="cinema-button write-hint" onClick={takeHint} disabled={done}>💡 İpucu{hintKeyOn && hintKey ? <kbd className="write-kbd">{hintKey.label}</kbd> : null}</button>
           {repeat && !done && <span className="write-plays" title="Kaçıncı oynatma">▶ {Math.min(playNo, 3)}/3</span>}
           <span className="write-legend"><i className="is-correct"/>doğru <i className="is-hint"/>ipucu <i className="is-wrong"/>yanlış</span>
           <span className="write-progress">{index + 1} / {clips.length}{done ? " · Doğru! 🎉" : ""}</span>
