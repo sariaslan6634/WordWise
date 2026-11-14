@@ -149,3 +149,5 @@ a.cinema-button{display:inline-flex;align-items:center;gap:6px;text-decoration:n
 .write-sub-letter.is-fixed,.write-sub-letter.is-auto,.write-sub-letter.is-correct,.write-sub-letter.is-hint,.write-sub-letter.is-wrong{box-shadow:none}
 
 .write-sub-letter,.write-sub-letter.is-fixed,.write-sub-letter.is-auto,.write-sub-letter.is-correct,.write-sub-letter.is-hint,.write-sub-letter.is-wrong{box-shadow:none}
+
+.write-pick{display:grid;gap:8px}.write-pick label{display:flex;align-items:center;gap:9px;font-size:14px;color:#d7e1da;cursor:pointer}.write-pick input{width:17px;height:17px;accent-color:#ffd84a;cursor:pointer}

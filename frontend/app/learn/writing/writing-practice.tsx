@@ -29,6 +29,7 @@ export default function WritingPractice({ initialClips }: { initialClips: Learne
   const [custom, setCustom] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [url, setUrl] = useState("");
+  const [pick, setPick] = useState<"all" | "random">("all");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [modalError, setModalError] = useState("");
@@ -136,7 +137,9 @@ export default function WritingPractice({ initialClips }: { initialClips: Learne
         body: JSON.stringify({ url: url.trim() }),
       }));
       if (fresh.length === 0) throw new Error("Bu videodan uygun bir alıştırma cümlesi çıkarılamadı. Başka bir video dene.");
-      setClips(fresh); setCustom(true); goTo(0); setHasInteracted(true);
+      // "Rastgele klip al": videodaki cümlelerden yalnızca birini rastgele seç.
+      setClips(pick === "random" ? [fresh[Math.floor(Math.random() * fresh.length)]] : fresh);
+      setCustom(true); goTo(0); setHasInteracted(true);
       setModalOpen(false); setUrl("");
     } catch (failure) {
       setModalError(failure instanceof Error ? failure.message : "Video işlenemedi.");
@@ -212,6 +215,10 @@ export default function WritingPractice({ initialClips }: { initialClips: Learne
         <h2>Video Ekle</h2>
         <p>Alıştırma yapmak istediğin YouTube videosunun bağlantısını yapıştır. Videodaki cümleler sana yazdırılır.</p>
         <input ref={urlRef} className="write-url-input" type="url" inputMode="url" placeholder="https://www.youtube.com/watch?v=…" value={url} onChange={(event) => setUrl(event.target.value)} aria-label="YouTube bağlantısı"/>
+        <div className="write-pick" role="group" aria-label="Kaç cümle alınsın">
+          <label><input type="checkbox" checked={pick === "all"} onChange={() => setPick("all")}/> Videonun tamamını getir</label>
+          <label><input type="checkbox" checked={pick === "random"} onChange={() => setPick("random")}/> Rastgele bir klip al</label>
+        </div>
         {modalError && <p className="cinema-error" role="alert">{modalError}</p>}
         <div className="cinema-modal-actions">
           <button type="button" className="cinema-button" onClick={() => setModalOpen(false)}>Vazgeç</button>
