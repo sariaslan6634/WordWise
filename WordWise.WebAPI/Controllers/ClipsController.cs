@@ -37,7 +37,7 @@ namespace WordWise.WebAPI.Controllers
         [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> FromVideo([FromBody] GenerateClipsFromVideoDto request, CancellationToken cancellationToken)
         {
-            var clips = await _mediator.Send(new GetClipsFromVideoQuery(CurrentUserId, request.Url), cancellationToken);
+            var clips = await _mediator.Send(new GetClipsFromVideoQuery(CurrentUserId, request.Url, request.Mode), cancellationToken);
             return Ok(ApiResponse<List<LearnerClipDto>>.Ok(clips, $"{clips.Count} cümle bulundu."));
         }
 

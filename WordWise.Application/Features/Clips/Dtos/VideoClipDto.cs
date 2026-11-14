@@ -31,6 +31,9 @@ namespace WordWise.Application.Features.Clips.Dtos
     {
         /// <summary>YouTube bağlantısı (watch?v=, youtu.be, shorts) veya 11 karakterlik video kimliği.</summary>
         public string Url { get; set; } = string.Empty;
+
+        /// <summary>"auto" (varsayılan): en çok 5 klip; "all": videonun tamamı (en fazla 1 saatlik videolar).</summary>
+        public string Mode { get; set; } = "auto";
     }
 
     public static class VideoClipMapper

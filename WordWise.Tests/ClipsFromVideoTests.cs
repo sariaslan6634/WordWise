@@ -25,11 +25,11 @@ public class ClipsFromVideoTests
             }));
     }
 
-    private sealed class FakeDetails : IVideoDetailsService
+    private sealed class FakeDetails(int durationSec = 180) : IVideoDetailsService
     {
         public Task<VideoDetails?> GetVideoDetailsAsync(string youtubeId, CancellationToken cancellationToken = default) =>
             Task.FromResult<VideoDetails?>(new VideoDetails(youtubeId, "A clean lesson", "Nothing special", "Channel",
-                new List<string> { "english" }, 180, "hd", true, "public", false));
+                new List<string> { "english" }, durationSec, "hd", true, "public", false));
     }
 
     [Fact]
@@ -56,5 +56,32 @@ public class ClipsFromVideoTests
 
         var second = await handler.Handle(new GetClipsFromVideoQuery(Guid.NewGuid(), "https://youtu.be/goodvideo01"), default);
         Assert.Equal(first.Select(c => c.Id).OrderBy(x => x), second.Select(c => c.Id).OrderBy(x => x)); // yeniden üretilmez
+    }
+
+    [Fact]
+    public async Task Whole_video_mode_rejects_videos_longer_than_an_hour_before_fetching_captions()
+    {
+        await using var context = CreateContext();
+        var handler = new GetClipsFromVideoQueryHandler(context, new ClipGenerator(context, new FakeCaptions(), new FakeDetails(durationSec: 7200)));
+
+        var error = await Assert.ThrowsAsync<BusinessException>(() =>
+            handler.Handle(new GetClipsFromVideoQuery(Guid.NewGuid(), "https://youtu.be/longvideo001", GetClipsFromVideoQuery.AllMode), default));
+        Assert.Contains("60 dakika", error.Message);
+        Assert.Empty(await context.VideoClips.ToListAsync());
+    }
+
+    [Fact]
+    public async Task Auto_mode_returns_at_most_five_clips_but_whole_video_mode_returns_all()
+    {
+        await using var context = CreateContext();
+        var handler = new GetClipsFromVideoQueryHandler(context, new ClipGenerator(context, new FakeCaptions(), new FakeDetails(durationSec: 600)));
+        var url = "https://www.youtube.com/watch?v=goodvideo01";
+
+        var auto = await handler.Handle(new GetClipsFromVideoQuery(Guid.NewGuid(), url), default);
+        Assert.InRange(auto.Count, 1, GetClipsFromVideoQuery.AutoClipCount);
+
+        var all = await handler.Handle(new GetClipsFromVideoQuery(Guid.NewGuid(), url, GetClipsFromVideoQuery.AllMode), default);
+        Assert.True(all.Count >= auto.Count);
+        Assert.Equal(all.OrderBy(c => c.StartSec).Select(c => c.Id), all.Select(c => c.Id)); // başlangıca göre sıralı
     }
 }

@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using WordWise.Application.Common.Exceptions;
 using WordWise.Application.Common.Interfaces;
 using WordWise.Application.Features.Clips.Dtos;
+using WordWise.Application.Features.Clips.Models;
 using WordWise.Domain.Entities;
 using WordWise.Domain.Enums;
 
@@ -37,17 +38,29 @@ namespace WordWise.Application.Features.Clips.Services
         }
 
         public async Task<List<VideoClipDto>> GenerateAsync(
-            string youtubeId, Guid? candidateId, CancellationToken cancellationToken, bool autoPublish = false, bool requireRealTimings = false)
+            string youtubeId, Guid? candidateId, CancellationToken cancellationToken, bool autoPublish = false, bool requireRealTimings = false,
+            ClipSelectorOptions? options = null, int? maxVideoSeconds = null)
         {
+            const string NoVideoInfo = "Video bilgileri YouTube'dan alınamadı (video silinmiş/gizli olabilir veya API anahtarı hatalı).";
+
+            // Süre sınırı varsa uzun videonun altyazısı indirilmeden önce reddedilir.
+            VideoDetails? details = null;
+            if (maxVideoSeconds.HasValue)
+            {
+                details = await _detailsService.GetVideoDetailsAsync(youtubeId, cancellationToken)
+                    ?? throw new BusinessException(NoVideoInfo);
+                if (details.DurationSeconds > maxVideoSeconds.Value)
+                    throw new BusinessException($"Videonun tamamı en fazla {maxVideoSeconds.Value / 60} dakikalık videolar için alınabilir. Daha kısa bir video seç ya da \"Otomatik klip al\" seçeneğini kullan.");
+            }
+
             var track = await _captionService.GetCaptionsAsync(youtubeId, cancellationToken);
             if (track is null || track.Lines.Count == 0)
                 throw new BusinessException("Bu video için İngilizce altyazı bulunamadı (videoda altyazı olmayabilir veya YouTube altyazıyı vermedi; API günlüklerine bakın).");
 
-            var details = await _detailsService.GetVideoDetailsAsync(youtubeId, cancellationToken);
-            if (details is null)
-                throw new BusinessException("Video bilgileri YouTube'dan alınamadı (video silinmiş/gizli olabilir veya API anahtarı hatalı).");
+            details ??= await _detailsService.GetVideoDetailsAsync(youtubeId, cancellationToken)
+                ?? throw new BusinessException(NoVideoInfo);
 
-            var picked = ClipSelector.Select(track.Lines, videoDurationSec: details.DurationSeconds, asrWords: track.TimedWords);
+            var picked = ClipSelector.Select(track.Lines, options, details.DurationSeconds, track.TimedWords);
 
             // Aynı videodan yayınlanmamış önceki üretimleri sil (yeniden üretimde kopya birikmesin).
             // Yayınlanmış klipler korunur; aynı cümle tekrar eklenmez.
