@@ -27,26 +27,40 @@ namespace WordWise.Application.Features.Clips.Models
     /// <param name="CaptionSeconds">Altyazı satırının ekranda kaldığı süre (konuşma süresi bundan kısa olabilir). 0 = bilinmiyor.</param>
     public record ClipCandidate(double Start, double End, string Text, IReadOnlyList<CaptionWord> Words, double CaptionSeconds = 0, bool TimingsReal = false);
 
+    /// <summary>Klip seçiminde kaç aday üretildi ve hangi sebeple elendi (günlük/teşhis için).</summary>
+    public class ClipSelectionStats
+    {
+        public int Lines, Groups, Candidates, TooFewWords, TooManyWords, BadDuration, TooManySentences, NotLetters, Duplicates, SpillOver, Overlapping, Picked;
+
+        public override string ToString() =>
+            $"satır={Lines}, cümle grubu={Groups}, aday={Candidates}, seçilen={Picked}; elenen: az kelime={TooFewWords}, çok kelime={TooManyWords}, süre={BadDuration}, çok cümle={TooManySentences}, harf oranı={NotLetters}, tekrar={Duplicates}, başka konuşma taşması={SpillOver}, çakışma={Overlapping}";
+    }
+
     public record QcResult(bool Passed, IReadOnlyList<string> Reasons, IReadOnlyList<string> Warnings);
 
     public class ClipSelectorOptions
     {
         public int MinWords { get; set; } = 3;
-        public int MaxWords { get; set; } = 12;
+        /// <summary>Tek cümlelik klipte en çok kelime (hem Listening hem Writing aynı klipleri kullanır).</summary>
+        public int MaxWords { get; set; } = 16;
         /// <summary>Art arda konuşan iki kişiyi tek klipte birleştirirken izin verilen en çok kelime.</summary>
-        public int MaxDialogueWords { get; set; } = 18;
+        public int MaxDialogueWords { get; set; } = 24;
         /// <summary>Bir klipteki en çok cümle sayısı (2 = bir kişi konuşur, diğeri hemen cevap verir).</summary>
         public int MaxSentences { get; set; } = 2;
         /// <summary>İki konuşma arasında bu kadar saniyeye kadar boşluk olsa da tek klip sayılır.</summary>
         public double MaxTurnGapSec { get; set; } = 1.5;
         public double MinDurationSec { get; set; } = 0.8;
         /// <summary>Altyazı satırının ekranda kalabileceği en uzun süre.</summary>
-        public double MaxDurationSec { get; set; } = 14;
+        public double MaxDurationSec { get; set; } = 18;
         /// <summary>İki klibin başlangıcı arasındaki en az süre (aynı yerden tekrar klip çıkmasın).</summary>
         public double MinGapSec { get; set; } = 15;
         public int MaxClips { get; set; } = 6;
         public double PaddingBeforeSec { get; set; } = 0.2;
-        public double PaddingAfterSec { get; set; } = 0.3;
+        public double PaddingAfterSec { get; set; } = 0.5;
+        /// <summary>false ise art arda konuşan iki kişi tek klipte birleştirilmez (tüm videoyu çakışmasız cümlelere bölmek için).</summary>
+        public bool MergeTurns { get; set; } = true;
+        /// <summary>Noktalamasız (otomatik) altyazıda cümleyi bitiren en kısa duraklama (sn).</summary>
+        public double PauseGapSec { get; set; } = 0.8;
     }
 }
 

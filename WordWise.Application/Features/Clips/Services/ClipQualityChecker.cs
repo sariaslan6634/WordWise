@@ -9,7 +9,7 @@ namespace WordWise.Application.Features.Clips.Services
     /// </summary>
     public static class ClipQualityChecker
     {
-        private const double MinWordsPerSecond = 1.0;
+        private const double MinWordsPerSecond = 0.6; // yavaş konuşan kişiler de uygun sayılsın
         private const double MaxWordsPerSecond = 5.0;
         private const double ContextSec = 2.0;
         public const int MinVideoHeight = 480;

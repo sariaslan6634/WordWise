@@ -158,3 +158,12 @@ The 480p QC change, dark theme, volume/replay UI, Wiktionary importer and pronun
 - İpucu **sınırsız** (💡 İpucu: ilk hatalı/eksik harfi doldurur). TODO: ileride bir şeye (puan/abonelik vb.) bağlanacak.
 - Kaynak: varsayılan olarak otomatik "bizim klipler" (yayındaki klipler; videonun kendi altyazısı olanlar elenir). Üstte "Video Ekle" butonu modal açar (URL altında radyo butonları: "Otomatik klip al" = varsayılan, videodan en çok 5 klip; "Videonun tamamını getir" = tüm uygun cümleler, `mode=all`, video en fazla 60 dk — çünkü her klip bir DB satırı, seçim/QC süresi ve yanıt boyutu klip sayısıyla büyür); YouTube bağlantısı → `POST api/Clips/from-video {url}` (`GetClipsFromVideoQuery`; yayınlanmaz, kalite kontrolünden geçenler döner, her yeni video kota harcar). Özel videodayken "Bizim kliplere dön" görünür.
 - Mantık `frontend/lib/dictation.ts` (saf fonksiyonlar; node ile denendi). Derlenmedi/çalıştırılmadı.
+
+## Klip seçici ayarları (Listening + Writing ortak)
+- İki sayfa aynı `VideoClip` kayıtlarını kullanır, bu yüzden seçici ayarları ortaktır (`ClipSelectorOptions`, `ClipSelector`, `ClipQualityChecker`).
+- Klip bitişi: kelime zamanı gerçek değilse konuşma süresi cömert tahmin edilir (≈0,7 sn/kelime + 1 sn, altyazı satırının bitişiyle sınırlı) ve sona 0,5 sn pay eklenir; yavaş konuşan biri cümle ortasında kesilmesin diye. Eski tahmin 0,45 sn/kelime + 0,6 sn idi.
+- Cümle sınırı: noktalamalı altyazıda noktalama; noktalamasız (otomatik) altyazıda ≥0,8 sn duraklama ya da `MaxWords`; ama cümle "the, to, and, of…" gibi bir bağlaçla bitiyorsa 2 sn'ye kadar duraklama cümleyi bölmez.
+- Varsayılanlar: `MaxWords=16`, `MaxDialogueWords=24`, `MaxDurationSec=18`, `PaddingAfterSec=0.5`, kalite kontrolü en düşük konuşma hızı 0,6 kelime/sn.
+- "Videonun tamamı" modunda `MergeTurns=false` (diyalog birleştirme yok, çakışmasız tek cümleler) ve `MinGapSec=0`.
+- Teşhis: `ClipGenerator` her üretimde günlüğe `[Klip] <id>: satır=…, cümle grubu=…, aday=…, seçilen=…; elenen: az kelime=…, çok kelime=…, süre=…, … ; kalite kontrolü: N uygun, M uygun değil. <en sık sebepler>` yazar (`ClipSelectionStats`).
+- Not: daha önce üretilmiş klipler eski sınırlarla kayıtlı kalır; bir videoyu yeniden üretmek için o videonun satırları silinir (`UPDATE VideoClips SET IsDeleted=1 WHERE YoutubeId='…'`, kaydedilen klipler de görünmez olur) ve video yeniden alınır.

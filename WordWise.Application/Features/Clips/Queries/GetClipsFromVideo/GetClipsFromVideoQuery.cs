@@ -45,7 +45,7 @@ namespace WordWise.Application.Features.Clips.Queries.GetClipsFromVideo
             {
                 if (all)
                     await _generator.GenerateAsync(youtubeId, null, cancellationToken, autoPublish: false,
-                        options: new ClipSelectorOptions { MaxClips = int.MaxValue, MinGapSec = 0 },
+                        options: new ClipSelectorOptions { MaxClips = int.MaxValue, MinGapSec = 0, MergeTurns = false },
                         maxVideoSeconds: GetClipsFromVideoQuery.MaxFullVideoSeconds);
                 else
                     await _generator.GenerateAsync(youtubeId, null, cancellationToken, autoPublish: false);

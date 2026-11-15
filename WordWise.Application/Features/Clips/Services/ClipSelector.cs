@@ -25,18 +25,34 @@ namespace WordWise.Application.Features.Clips.Services
             return SpaceRegex.Replace(text, " ").Trim();
         }
 
+        private static readonly HashSet<string> Connectors = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "the", "a", "an", "to", "and", "or", "but", "of", "in", "on", "at", "for", "with", "from", "by", "as", "so",
+            "because", "that", "if", "when", "than", "my", "your", "his", "her", "its", "our", "their", "is", "are", "was", "were", "be",
+        };
+
+        /// <summary>Metin bir bağlaç/edat/tanımlıkla bitiyorsa cümlenin devam ettiği varsayılır.</summary>
+        private static bool EndsWithConnector(string text)
+        {
+            var matches = WordRegex.Matches(text);
+            return matches.Count > 0 && Connectors.Contains(matches[matches.Count - 1].Value);
+        }
+
         public static int WordCount(string text) => WordRegex.Matches(text).Count;
 
         public static List<ClipCandidate> Select(
             IReadOnlyList<CaptionLine> lines,
             ClipSelectorOptions? options = null,
             double? videoDurationSec = null,
-            IReadOnlyList<CaptionWord>? asrWords = null)
+            IReadOnlyList<CaptionWord>? asrWords = null,
+            ClipSelectionStats? stats = null)
         {
             options ??= new ClipSelectorOptions();
+            stats ??= new ClipSelectionStats();
             var ordered = lines.OrderBy(l => l.Start).ToList();
             if (ordered.Count == 0) return new List<ClipCandidate>();
 
+            stats.Lines = ordered.Count;
             var cleaned = ordered.Select(l => Clean(l.Text)).ToList();
             var punctuatedLines = cleaned.Count(c => c.Length > 0 && EndsSentenceRegex.IsMatch(c));
             var transcriptIsPunctuated = punctuatedLines >= Math.Max(1, ordered.Count / 5);
@@ -68,7 +84,9 @@ namespace WordWise.Application.Features.Clips.Services
                 {
                     var hasNext = i + 1 < ordered.Count;
                     var gapToNext = hasNext ? ordered[i + 1].Start - ordered[i].End : double.MaxValue;
-                    if (!hasNext || gapToNext >= 0.6 || bufferWords >= options.MaxWords)
+                    // Cümle "the, to, and…" gibi bir bağlaçta yarım bırakılmaz: kısa bir duraklama yetmez, belirgin bir boşluk gerekir.
+                    var pauseEnough = gapToNext >= options.PauseGapSec && !(EndsWithConnector(cleaned[i]) && gapToNext < 2.0);
+                    if (!hasNext || pauseEnough || bufferWords >= options.MaxWords)
                         Flush();
                 }
                 else if (bufferWords > options.MaxWords * 2)
@@ -77,13 +95,14 @@ namespace WordWise.Application.Features.Clips.Services
                 }
             }
             Flush();
+            stats.Groups = groups.Count;
 
             // 2) Aday kümeler: tek cümleler + art arda konuşan iki kişinin diyalog klipleri
             var candidateSets = new List<List<int>>();
             for (var g = 0; g < groups.Count; g++)
             {
                 candidateSets.Add(groups[g]);
-                if (g + 1 < groups.Count && options.MaxSentences >= 2)
+                if (g + 1 < groups.Count && options.MaxSentences >= 2 && options.MergeTurns)
                 {
                     var gap = ordered[groups[g + 1][0]].Start - groups[g].Max(k => ordered[k].End);
                     if (gap <= options.MaxTurnGapSec)
@@ -91,6 +110,7 @@ namespace WordWise.Application.Features.Clips.Services
                 }
             }
 
+            stats.Candidates = candidateSets.Count;
             var scored = new List<(ClipCandidate Clip, double Score)>();
             var seen = new HashSet<string>();
             foreach (var set in candidateSets)
@@ -104,17 +124,19 @@ namespace WordWise.Application.Features.Clips.Services
                 var sentenceCount = transcriptIsPunctuated
                     ? MidSentenceBreak.Matches(text).Count + 1
                     : (groups.Contains(set) ? 1 : 2);
-                if (sentenceCount > options.MaxSentences) continue;
+                if (sentenceCount > options.MaxSentences) { stats.TooManySentences++; continue; }
                 var maxWords = sentenceCount == 1 ? options.MaxWords : options.MaxDialogueWords;
 
-                if (wordCount < options.MinWords || wordCount > maxWords) continue;
-                if (duration < options.MinDurationSec || duration > options.MaxDurationSec) continue;
+                if (wordCount < options.MinWords) { stats.TooFewWords++; continue; }
+                if (wordCount > maxWords) { stats.TooManyWords++; continue; }
+                if (duration < options.MinDurationSec || duration > options.MaxDurationSec) { stats.BadDuration++; continue; }
                 var letters = text.Count(char.IsLetter);
-                if (letters < text.Count(c => !char.IsWhiteSpace(c)) * 0.7) continue;
-                if (!seen.Add(Normalize(text))) continue;
+                if (letters < text.Count(c => !char.IsWhiteSpace(c)) * 0.7) { stats.NotLetters++; continue; }
+                if (!seen.Add(Normalize(text))) { stats.Duplicates++; continue; }
 
-                // Altyazı ekranda konuşmadan uzun kalabilir; konuşma süresini kelime sayısından tahmin et.
-                var speakEnd = Math.Min(end, start + wordCount * 0.45 + 0.6);
+                // Altyazı ekranda konuşmadan uzun kalabilir; ama yavaş konuşan biri için konuşma süresini kısa tahmin edip
+                // cümleyi ortadan kesmek, sonda biraz fazla sessizlik bırakmaktan çok daha kötü. Bu yüzden cömert bir tahmin (≈0,7 sn/kelime + 1 sn) kullanılır.
+                var speakEnd = Math.Min(end, start + wordCount * 0.7 + 1.0);
                 var (words, real) = BuildWords(set.OrderBy(k => k).Select(k => ordered[k]).ToList(), text, start, speakEnd);
                 if (!real && asrWords is { Count: > 0 })
                 {
@@ -144,7 +166,7 @@ namespace WordWise.Application.Features.Clips.Services
                     !members.Contains(idx)
                     && Math.Min(l.End, padEnd) - Math.Max(l.Start, padStart) > 0.5
                     && WordCount(cleaned[idx]) >= 2).Any();
-                if (spillsOver) continue;
+                if (spillsOver) { stats.SpillOver++; continue; }
 
                 scored.Add((new ClipCandidate(Math.Round(padStart, 2), Math.Round(padEnd, 2), text, words, Math.Round(duration, 2), real), score));
             }
@@ -154,9 +176,10 @@ namespace WordWise.Application.Features.Clips.Services
             foreach (var (clip, _) in scored.OrderByDescending(s => s.Score).ThenBy(s => s.Clip.Start))
             {
                 if (picked.Count >= options.MaxClips) break;
-                if (picked.Any(p => Math.Abs(p.Start - clip.Start) < options.MinGapSec || (p.Start < clip.End && clip.Start < p.End))) continue;
+                if (picked.Any(p => Math.Abs(p.Start - clip.Start) < options.MinGapSec || (p.Start < clip.End && clip.Start < p.End))) { stats.Overlapping++; continue; }
                 picked.Add(clip);
             }
+            stats.Picked = picked.Count;
 
             return picked.OrderBy(p => p.Start).ToList();
         }

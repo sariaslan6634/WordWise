@@ -81,13 +81,13 @@ public class ClipAgentTests
     [Fact]
     public void Selector_caps_speech_duration_when_caption_stays_long_on_screen()
     {
-        // Altyazı 7 sn ekranda kalıyor ama 4 kelimelik cümle ~2.4 sn sürer
+        // Altyazı 7 sn ekranda kalıyor; konuşma süresi cömertçe (~0,7 sn/kelime + 1 sn) tahmin edilir, ama 7 sn'nin tamamı kullanılmaz
         var lines = new List<CaptionLine> { Line(240.24, 7, "Come on, be careful.") };
         var track = new CaptionTrack("en", false, lines);
 
         var clip = Assert.Single(ClipSelector.Select(lines, videoDurationSec: 300));
         var span = clip.Words[^1].End - clip.Words[0].Start;
-        Assert.True(span < 3.0, $"konuşma süresi {span}");
+        Assert.True(span is > 2.4 and < 4.5, $"konuşma süresi {span}");
         Assert.Equal(7, clip.CaptionSeconds);
 
         var longVideo = GoodDetails() with { DurationSeconds = 300 }; // klip 240. sn civarında
@@ -239,5 +239,41 @@ public class YoutubeIdTests
     public void Returns_null_for_invalid_input(string input)
     {
         Assert.Null(WordWise.Application.Features.Clips.Services.ClipGenerator.ExtractYoutubeId(input));
+    }
+
+    [Fact]
+    public void Selector_gives_slow_speakers_enough_time_instead_of_cutting_the_sentence()
+    {
+        // 6 kelime, altyazı 7 sn ekranda: eski tahminle (≈3,3 sn) cümle ortasında biterdi
+        var lines = new List<CaptionLine> { Line(100, 7, "Come on, be careful please now.") };
+
+        var clip = Assert.Single(ClipSelector.Select(lines, videoDurationSec: 300));
+        Assert.True(clip.End - 100 >= 5.0, $"klip {clip.End - 100} sn sürüyor");
+    }
+
+    [Fact]
+    public void Selector_does_not_end_an_unpunctuated_sentence_on_a_connector_word()
+    {
+        // Noktalamasız altyazı: ilk satır "the" ile bitiyor, 1,2 sn duraklama var. Cümle burada bölünmemeli.
+        var lines = new List<CaptionLine>
+        {
+            Line(10, 2, "so yesterday we walked down to the"),
+            Line(13.2, 2, "market and bought some bread"),
+        };
+
+        var clip = Assert.Single(ClipSelector.Select(lines, videoDurationSec: 300));
+        Assert.Contains("to the market", clip.Text);
+    }
+
+    [Fact]
+    public void Selector_reports_why_candidates_were_dropped()
+    {
+        var stats = new ClipSelectionStats();
+        ClipSelector.Select(SampleLines(), videoDurationSec: 180, stats: stats);
+
+        Assert.Equal(SampleLines().Count, stats.Lines);
+        Assert.True(stats.Candidates > 0);
+        Assert.True(stats.TooFewWords > 0); // "Thanks!" tek kelime
+        Assert.True(stats.Picked > 0);
     }
 }

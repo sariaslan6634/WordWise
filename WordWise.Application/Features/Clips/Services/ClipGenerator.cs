@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using WordWise.Application.Common.Exceptions;
@@ -14,7 +15,8 @@ namespace WordWise.Application.Features.Clips.Services
     public class ClipGenerator(
         IWordWiseDbContext _context,
         ICaptionService _captionService,
-        IVideoDetailsService _detailsService)
+        IVideoDetailsService _detailsService,
+        ILogger<ClipGenerator>? _logger = null)
     {
         private static readonly Regex IdRegex = new(@"^[A-Za-z0-9_-]{11}$", RegexOptions.Compiled);
         private static readonly Regex UrlIdRegex = new(
@@ -60,7 +62,8 @@ namespace WordWise.Application.Features.Clips.Services
             details ??= await _detailsService.GetVideoDetailsAsync(youtubeId, cancellationToken)
                 ?? throw new BusinessException(NoVideoInfo);
 
-            var picked = ClipSelector.Select(track.Lines, options, details.DurationSeconds, track.TimedWords);
+            var stats = new ClipSelectionStats();
+            var picked = ClipSelector.Select(track.Lines, options, details.DurationSeconds, track.TimedWords, stats);
 
             // Aynı videodan yayınlanmamış önceki üretimleri sil (yeniden üretimde kopya birikmesin).
             // Yayınlanmış klipler korunur; aynı cümle tekrar eklenmez.
@@ -100,6 +103,19 @@ namespace WordWise.Application.Features.Clips.Services
             }
 
             await _context.SaveChangesAsync(cancellationToken);
+
+            // Teşhis: neden bazı cümlelerin atlandığı günlükte görülebilsin.
+            if (_logger is not null)
+            {
+                var failed = created.Where(c => c.QcStatus != ClipQcStatus.Passed).ToList();
+                var topReasons = failed
+                    .SelectMany(c => (c.QcReasons ?? string.Empty).Split('\n', StringSplitOptions.RemoveEmptyEntries))
+                    .GroupBy(r => r).OrderByDescending(g => g.Count()).Take(3)
+                    .Select(g => $"{g.Count()}× {g.Key}");
+                _logger.LogInformation("[Klip] {VideoId}: {Stats}; kalite kontrolü: {Passed} uygun, {Failed} uygun değil. {Reasons}",
+                    youtubeId, stats, created.Count - failed.Count, failed.Count, string.Join(" | ", topReasons));
+            }
+
             return created.Select(VideoClipMapper.ToDto).ToList();
         }
     }
