@@ -177,3 +177,7 @@ The 480p QC change, dark theme, volume/replay UI, Wiktionary importer and pronun
 ## Admin klip listesi ve otomatik keşif
 - Admin klip listesi artık onay bekleyen ve yayındaki klipleri ayrı ayrı (her biri en son 500) getirir. Önceden tek listede son 100 klip vardı: yeni klipler eskileri listeden itiyordu ("Yayında 100" gibi görünüyordu), hiçbir klip silinmiyordu.
 - Otomatik keşif (`ClipDiscoveryRunner`): tek sorgu çoğunlukla zaten bilinen videoları döndürdüğü için yeterli (MaxVideosPerRun) yeni video bulunana kadar en çok 4 farklı sorgu denenir. Bilinen videolar (`DiscoveredVideos` ya da klibi olanlar) tekrar işlenmez; hiçbir şey silinmez.
+
+## Bir videodan olabildiğince çok klip
+- Otomatik keşif artık her videodan tüm uygun cümleleri alır (`ClipSelectorOptions.ForWholeVideo`: çakışmasız tek cümleler, aralarında en az boşluk yok). Güvenlik sınırları `AutoDiscoverySettings`: `MaxClipsPerVideo` (300) ve `MaxVideoMinutes` (60; daha uzun videolar "Failed" kaydedilir, tekrar denenmez). Arama süresi varsayılanı "short" → "medium" (4–20 dk) yapıldı (daha çok cümle için); kullanıcı ayarlarında `AutoDiscovery:VideoDuration` elle verilmişse onu değiştirmek gerekir (`"long"` = 20 dk üstü, `"any"` = hepsi).
+- Kullanıcının "Video Ekle"si: "Videonun tamamı" aynı seçeneklerle üretir (≤60 dk); "Otomatik klip al" 5 klip verir. Daha önce kısıtlı üretilmiş (≤6 klipli) bir video "tamamı" istenirse bir kez yeniden üretilir.

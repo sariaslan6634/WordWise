@@ -110,4 +110,52 @@ public class AutoDiscoveryTests
         Assert.All(clips, c => Assert.False(c.IsPublished));
         Assert.All(clips, c => Assert.Equal("Channel", c.SourceChannel));
     }
+
+    private sealed class LongCaptions : ICaptionService
+    {
+        private static readonly string[] Topics =
+            { "garden", "kitchen", "window", "morning", "river", "bridge", "market", "teacher", "doctor", "holiday",
+              "mountain", "library", "station", "village", "weather", "dinner", "music", "journey", "picture", "letter" };
+
+        public Task<CaptionTrack?> GetCaptionsAsync(string youtubeId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<CaptionTrack?>(new CaptionTrack("en", false,
+                Topics.Select((topic, i) => new CaptionLine(10 + i * 12, 3, $"We talked about the {topic} yesterday afternoon.")).ToList()));
+    }
+
+    private sealed class SizedDetails(int durationSec) : IVideoDetailsService
+    {
+        public Task<VideoDetails?> GetVideoDetailsAsync(string youtubeId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<VideoDetails?>(new VideoDetails(youtubeId, "A long lesson", "Nothing special", "Channel",
+                new List<string> { "english" }, durationSec, "hd", true, "public", false));
+    }
+
+    private static ClipDiscoveryRunner CreateLongRunner(WordWiseDbContext context, int durationSec) => new(
+        context,
+        new FakeDiscovery(GoodId),
+        new ClipGenerator(context, new LongCaptions(), new SizedDetails(durationSec)),
+        Options.Create(new AutoDiscoverySettings { AutoPublish = false, MaxVideosPerRun = 1 }),
+        NullLogger<ClipDiscoveryRunner>.Instance);
+
+    [Fact]
+    public async Task Runner_takes_every_usable_sentence_of_a_video_not_just_a_handful()
+    {
+        await using var context = CreateContext();
+
+        var result = await CreateLongRunner(context, durationSec: 600).RunOnceAsync(default);
+
+        Assert.True(result.ClipsCreated > 6, $"yalnızca {result.ClipsCreated} klip üretildi"); // eskiden en çok 6
+        Assert.Equal(20, result.ClipsCreated); // 20 farklı cümle, hepsi alınır
+    }
+
+    [Fact]
+    public async Task Runner_skips_videos_longer_than_the_limit()
+    {
+        await using var context = CreateContext();
+
+        var result = await CreateLongRunner(context, durationSec: 2 * 3600).RunOnceAsync(default);
+
+        Assert.Equal(0, result.ClipsCreated);
+        Assert.Single(result.Failures);
+        Assert.Contains(await context.DiscoveredVideos.ToListAsync(), d => d.Status == "Failed");
+    }
 }

@@ -61,6 +61,10 @@ namespace WordWise.Application.Features.Clips.Models
         public bool MergeTurns { get; set; } = true;
         /// <summary>Noktalamasız (otomatik) altyazıda cümleyi bitiren en kısa duraklama (sn).</summary>
         public double PauseGapSec { get; set; } = 0.8;
+
+        /// <summary>Videodaki uygun cümlelerin mümkün olduğunca çoğu: çakışmasız tek cümleler, aralarında en az boşluk yok, en çok <paramref name="maxClips"/> klip.</summary>
+        public static ClipSelectorOptions ForWholeVideo(int maxClips = int.MaxValue) =>
+            new() { MaxClips = maxClips, MinGapSec = 0, MergeTurns = false };
     }
 }
 

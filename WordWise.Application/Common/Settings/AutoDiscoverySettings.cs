@@ -16,14 +16,20 @@ namespace WordWise.Application.Common.Settings
 
         public int MaxResultsPerQuery { get; set; } = 10;
 
+        /// <summary>Bir videodan en çok kaç klip alınır (güvenlik sınırı; normalde videodaki tüm uygun cümleler alınır).</summary>
+        public int MaxClipsPerVideo { get; set; } = 300;
+
+        /// <summary>Bundan uzun videolar işlenmez (her klip bir veritabanı satırı; seçim/kalite kontrolü klip sayısıyla çok artar).</summary>
+        public int MaxVideoMinutes { get; set; } = 60;
+
         /// <summary>true ise kalite kontrolünden geçen klipler admin onayı beklemeden yayınlanır.</summary>
         public bool AutoPublish { get; set; } = true;
 
         /// <summary>true ise yalnızca kelime zamanları gerçek (otomatik altyazı kaydıyla eşleşen) klipler otomatik yayınlanır; tahmini zamanlılar admin onayı bekler.</summary>
         public bool AutoPublishRequiresRealTimings { get; set; } = true;
 
-        /// <summary>YouTube araması süre filtresi: "short" (4 dk altı), "medium" (4-20 dk), "any".</summary>
-        public string VideoDuration { get; set; } = "short";
+        /// <summary>YouTube araması süre filtresi: "short" (4 dk altı), "medium" (4-20 dk), "long" (20 dk üstü), "any". Her videodan olabildiğince çok klip alındığı için varsayılan "medium".</summary>
+        public string VideoDuration { get; set; } = "medium";
 
         /// <summary>Arama sorguları. Boşsa koddaki varsayılan liste kullanılır.</summary>
         public List<string> Queries { get; set; } = new();
