@@ -24,9 +24,9 @@ namespace WordWise.WebAPI.Controllers
         /// <summary>Öğrenci için rastgele klip seçkisi. savedOnly=true ise yalnızca kaydettikleri.</summary>
         [HttpGet]
         [ProducesResponseType(typeof(ApiResponse<List<LearnerClipDto>>), StatusCodes.Status200OK)]
-        public async Task<IActionResult> GetClips([FromQuery] int count = 20, [FromQuery] bool savedOnly = false, CancellationToken cancellationToken = default)
+        public async Task<IActionResult> GetClips([FromQuery] int count = 20, [FromQuery] bool savedOnly = false, [FromQuery] bool excludeBurnedIn = false, CancellationToken cancellationToken = default)
         {
-            var clips = await _mediator.Send(new GetLearnerClipsQuery(CurrentUserId, count, savedOnly), cancellationToken);
+            var clips = await _mediator.Send(new GetLearnerClipsQuery(CurrentUserId, count, savedOnly, excludeBurnedIn), cancellationToken);
             await _backfiller.FillAsync(clips, cancellationToken);
             return Ok(ApiResponse<List<LearnerClipDto>>.Ok(clips));
         }

@@ -29,6 +29,24 @@ public class LearnerClipTests
     };
 
     [Fact]
+    public async Task Writing_query_can_exclude_clips_of_videos_with_burned_in_captions()
+    {
+        await using var context = CreateContext();
+        var plain = Clip(published: true);
+        var burned = Clip(published: true);
+        burned.HasBurnedInCaptions = true;
+        context.VideoClips.AddRange(plain, burned);
+        await context.SaveChangesAsync();
+        var handler = new GetLearnerClipsQueryHandler(context);
+
+        var listening = await handler.Handle(new GetLearnerClipsQuery(Guid.NewGuid(), 20), default);
+        Assert.Equal(2, listening.Count); // Listening'de bizim altyazımız önemli değil, ikisi de gelir
+
+        var writing = await handler.Handle(new GetLearnerClipsQuery(Guid.NewGuid(), 20, ExcludeBurnedIn: true), default);
+        Assert.Equal(plain.Id, Assert.Single(writing).Id);
+    }
+
+    [Fact]
     public async Task Learner_query_returns_only_published_clips_and_hides_ones_the_user_reported()
     {
         await using var context = CreateContext();

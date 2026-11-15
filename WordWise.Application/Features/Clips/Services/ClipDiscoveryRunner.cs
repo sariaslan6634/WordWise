@@ -19,6 +19,8 @@ namespace WordWise.Application.Features.Clips.Services
         IOptions<AutoDiscoverySettings> _options,
         ILogger<ClipDiscoveryRunner> _logger)
     {
+        private const int MaxQueriesPerRun = 4;
+
         public static readonly string[] DefaultQueries =
         {
             "english movie scene dialogue",
@@ -36,21 +38,32 @@ namespace WordWise.Application.Features.Clips.Services
             var settings = _options.Value;
             var queries = settings.Queries.Where(q => !string.IsNullOrWhiteSpace(q)).ToList();
             if (queries.Count == 0) queries = DefaultQueries.ToList();
-            var query = queries[Random.Shared.Next(queries.Count)];
+            // Tek sorgu çoğu zaman zaten bilinen videoları döndürür; yeterli yeni video bulunana kadar (en çok 4) farklı sorgu denenir.
+            var wanted = Math.Max(1, settings.MaxVideosPerRun);
+            var pool = new Dictionary<string, DiscoveredVideoInfo>();
+            var foundBy = new Dictionary<string, string>();
+            var usedQueries = new List<string>();
+            var fresh = new List<DiscoveredVideoInfo>();
+            foreach (var candidateQuery in queries.OrderBy(_ => Random.Shared.Next()).Take(MaxQueriesPerRun))
+            {
+                var found = await _discovery.SearchAsync(candidateQuery, settings.MaxResultsPerQuery, settings.VideoDuration, cancellationToken);
+                usedQueries.Add(candidateQuery);
+                foreach (var video in found)
+                    if (pool.TryAdd(video.YoutubeId, video)) foundBy[video.YoutubeId] = candidateQuery;
 
-            var found = await _discovery.SearchAsync(query, settings.MaxResultsPerQuery, settings.VideoDuration, cancellationToken);
-            var unique = found.GroupBy(f => f.YoutubeId).Select(g => g.First()).ToList();
-            var ids = unique.Select(f => f.YoutubeId).ToList();
+                var ids = pool.Keys.ToList();
+                var known = await _context.DiscoveredVideos
+                    .Where(d => ids.Contains(d.YoutubeId)).Select(d => d.YoutubeId).ToListAsync(cancellationToken);
+                var withClips = await _context.VideoClips
+                    .Where(c => ids.Contains(c.YoutubeId)).Select(c => c.YoutubeId).Distinct().ToListAsync(cancellationToken);
 
-            var known = await _context.DiscoveredVideos
-                .Where(d => ids.Contains(d.YoutubeId)).Select(d => d.YoutubeId).ToListAsync(cancellationToken);
-            var withClips = await _context.VideoClips
-                .Where(c => ids.Contains(c.YoutubeId)).Select(c => c.YoutubeId).Distinct().ToListAsync(cancellationToken);
-
-            var fresh = unique
-                .Where(f => !known.Contains(f.YoutubeId) && !withClips.Contains(f.YoutubeId))
-                .Take(Math.Max(1, settings.MaxVideosPerRun))
-                .ToList();
+                fresh = pool.Values
+                    .Where(f => !known.Contains(f.YoutubeId) && !withClips.Contains(f.YoutubeId))
+                    .Take(wanted)
+                    .ToList();
+                if (fresh.Count >= wanted) break;
+            }
+            var query = string.Join(" | ", usedQueries);
 
             var processed = 0; var created = 0; var published = 0;
             var failures = new List<string>();
@@ -62,7 +75,7 @@ namespace WordWise.Application.Features.Clips.Services
                 {
                     YoutubeId = video.YoutubeId,
                     Title = video.Title.Length > 500 ? video.Title[..500] : video.Title,
-                    SearchQuery = query.Length > 300 ? query[..300] : query,
+                    SearchQuery = foundBy[video.YoutubeId].Length > 300 ? foundBy[video.YoutubeId][..300] : foundBy[video.YoutubeId],
                 };
 
                 try
@@ -88,7 +101,7 @@ namespace WordWise.Application.Features.Clips.Services
                 await _context.SaveChangesAsync(cancellationToken);
             }
 
-            return new DiscoveryRunResult(query, unique.Count, processed, created, published, failures);
+            return new DiscoveryRunResult(query, pool.Count, processed, created, published, failures);
         }
     }
 }

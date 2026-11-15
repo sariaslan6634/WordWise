@@ -193,7 +193,7 @@ export default function WritingPractice({ initialClips }: { initialClips: Learne
     clearTimer();
     setLoading(true); setError("");
     try {
-      const fresh = usable(await request<LearnerClip[]>("Clips?count=30"));
+      const fresh = usable(await request<LearnerClip[]>("Clips?count=30&excludeBurnedIn=true"));
       setClips(fresh); setCustom(false); goTo(0);
       if (fresh.length === 0) setError("Şu an alıştırma klibi yok. Biraz sonra tekrar dene.");
     } catch (failure) {

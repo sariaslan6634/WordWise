@@ -7,9 +7,9 @@ namespace WordWise.Application.Features.Clips.Queries.GetLearnerClips
 {
     /// <summary>
     /// Rastgele bir klip seçkisi. Varsayılan: yayındaki klipler (kullanıcının bildirdikleri hariç).
-    /// SavedOnly: yalnızca kullanıcının kaydettiği klipler.
+    /// SavedOnly: yalnızca kullanıcının kaydettiği klipler. ExcludeBurnedIn: videosunda kendi yazılı altyazısı olan klipleri çıkarır (Writing'de cevap ekranda görünmesin).
     /// </summary>
-    public record GetLearnerClipsQuery(Guid UserId, int Count, bool SavedOnly = false) : IRequest<List<LearnerClipDto>>;
+    public record GetLearnerClipsQuery(Guid UserId, int Count, bool SavedOnly = false, bool ExcludeBurnedIn = false) : IRequest<List<LearnerClipDto>>;
 
     public class GetLearnerClipsQueryHandler(IWordWiseDbContext _context)
         : IRequestHandler<GetLearnerClipsQuery, List<LearnerClipDto>>
@@ -33,6 +33,7 @@ namespace WordWise.Application.Features.Clips.Queries.GetLearnerClips
                     .Where(r => r.UserId == request.UserId)
                     .Select(r => r.ClipId);
                 query = _context.VideoClips.Where(c => c.IsPublished && !c.IsRejected && !reportedByUser.Contains(c.Id));
+                if (request.ExcludeBurnedIn) query = query.Where(c => !c.HasBurnedInCaptions);
             }
 
             var clips = await query.OrderBy(c => Guid.NewGuid()).Take(count).ToListAsync(cancellationToken);

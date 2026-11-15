@@ -170,3 +170,10 @@ The 480p QC change, dark theme, volume/replay UI, Wiktionary importer and pronun
 
 ## Admin: klip süresini elle ayarlama
 - Admin > Klipler > "Onay bekleyen" sekmesindeki her kartta başlangıç/bitiş saniyesi için ±0,5 sn butonları ve sayı kutusu var; "Önizle" yeni süreyle oynar, "Süreyi kaydet" `PUT api/AdminVideo/clips/{id}/timing {startSec,endSec}` çağırır (`AdjustClipTimingCommand`). Yalnızca yayınlanmamış klipler değiştirilir (yayındaki için hata: önce yayından kaldır). Kurallar: başlangıç ≥ 0, bitiş > başlangıç, en çok 60 sn. Kelime zamanları (karaoke) olduğu gibi kalır. Testler: `ClipTimingTests`.
+
+## Writing: videoda yazılı altyazı olan klipler
+- Admin'de "Videoda yazılı altyazı var" işaretlenen videoların klipleri Writing'de çıkmaz (sunucu tarafında `GET api/Clips?excludeBurnedIn=true`, `GetLearnerClipsQuery.ExcludeBurnedIn`); Listening'de çıkmaya devam eder (orada bizim altyazımız zaten gizlenir).
+
+## Admin klip listesi ve otomatik keşif
+- Admin klip listesi artık onay bekleyen ve yayındaki klipleri ayrı ayrı (her biri en son 500) getirir. Önceden tek listede son 100 klip vardı: yeni klipler eskileri listeden itiyordu ("Yayında 100" gibi görünüyordu), hiçbir klip silinmiyordu.
+- Otomatik keşif (`ClipDiscoveryRunner`): tek sorgu çoğunlukla zaten bilinen videoları döndürdüğü için yeterli (MaxVideosPerRun) yeni video bulunana kadar en çok 4 farklı sorgu denenir. Bilinen videolar (`DiscoveredVideos` ya da klibi olanlar) tekrar işlenmez; hiçbir şey silinmez.
