@@ -98,6 +98,15 @@ namespace WordWise.WebAPI.Controllers.Admin
             return Ok(ApiResponse<VideoClipDto>.Ok(clip, "Clip published."));
         }
 
+        /// <summary>Onay bekleyen klibin başlangıç/bitiş saniyesini elle ayarlar (yayındaki klip için hata döner).</summary>
+        [HttpPut("clips/{clipId:guid}/timing")]
+        [ProducesResponseType(typeof(ApiResponse<VideoClipDto>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> AdjustClipTiming(Guid clipId, [FromBody] AdjustClipTimingRequest request, CancellationToken cancellationToken)
+        {
+            var clip = await _mediator.Send(new AdjustClipTimingCommand(clipId, request.StartSec, request.EndSec), cancellationToken);
+            return Ok(ApiResponse<VideoClipDto>.Ok(clip, "Clip timing updated."));
+        }
+
         [HttpPost("clips/{clipId:guid}/reject")]
         [ProducesResponseType(typeof(ApiResponse<VideoClipDto>), StatusCodes.Status200OK)]
         public async Task<IActionResult> RejectClip(Guid clipId, CancellationToken cancellationToken)

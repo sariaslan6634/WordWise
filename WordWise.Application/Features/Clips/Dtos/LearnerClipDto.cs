@@ -44,6 +44,12 @@ namespace WordWise.Application.Features.Clips.Dtos
         };
     }
 
+    public class AdjustClipTimingRequest
+    {
+        public double StartSec { get; set; }
+        public double EndSec { get; set; }
+    }
+
     public class SetBurnedInCaptionsRequest
     {
         public bool Value { get; set; }

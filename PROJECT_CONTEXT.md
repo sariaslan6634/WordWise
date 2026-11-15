@@ -167,3 +167,6 @@ The 480p QC change, dark theme, volume/replay UI, Wiktionary importer and pronun
 - "Videonun tamamı" modunda `MergeTurns=false` (diyalog birleştirme yok, çakışmasız tek cümleler) ve `MinGapSec=0`.
 - Teşhis: `ClipGenerator` her üretimde günlüğe `[Klip] <id>: satır=…, cümle grubu=…, aday=…, seçilen=…; elenen: az kelime=…, çok kelime=…, süre=…, … ; kalite kontrolü: N uygun, M uygun değil. <en sık sebepler>` yazar (`ClipSelectionStats`).
 - Not: daha önce üretilmiş klipler eski sınırlarla kayıtlı kalır; bir videoyu yeniden üretmek için o videonun satırları silinir (`UPDATE VideoClips SET IsDeleted=1 WHERE YoutubeId='…'`, kaydedilen klipler de görünmez olur) ve video yeniden alınır.
+
+## Admin: klip süresini elle ayarlama
+- Admin > Klipler > "Onay bekleyen" sekmesindeki her kartta başlangıç/bitiş saniyesi için ±0,5 sn butonları ve sayı kutusu var; "Önizle" yeni süreyle oynar, "Süreyi kaydet" `PUT api/AdminVideo/clips/{id}/timing {startSec,endSec}` çağırır (`AdjustClipTimingCommand`). Yalnızca yayınlanmamış klipler değiştirilir (yayındaki için hata: önce yayından kaldır). Kurallar: başlangıç ≥ 0, bitiş > başlangıç, en çok 60 sn. Kelime zamanları (karaoke) olduğu gibi kalır. Testler: `ClipTimingTests`.
