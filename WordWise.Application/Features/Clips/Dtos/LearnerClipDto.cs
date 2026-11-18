@@ -60,5 +60,8 @@ namespace WordWise.Application.Features.Clips.Dtos
         /// <summary>Quality, CaptionSync, Inappropriate veya Other.</summary>
         public string Reason { get; set; } = string.Empty;
         public string? Note { get; set; }
+
+        /// <summary>true (varsayılan): bildirilen klip bildirene bir daha gösterilmez.</summary>
+        public bool HideFromMe { get; set; } = true;
     }
 }

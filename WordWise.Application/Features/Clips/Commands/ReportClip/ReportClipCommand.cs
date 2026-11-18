@@ -7,7 +7,8 @@ using WordWise.Domain.Enums;
 
 namespace WordWise.Application.Features.Clips.Commands.ReportClip
 {
-    public record ReportClipCommand(Guid UserId, Guid ClipId, string Reason, string? Note) : IRequest<Unit>;
+    /// <param name="HideFromMe">true (varsayılan): bildirilen klip bildiren kullanıcıya bir daha gösterilmez.</param>
+    public record ReportClipCommand(Guid UserId, Guid ClipId, string Reason, string? Note, bool HideFromMe = true) : IRequest<Unit>;
 
     public class ReportClipCommandHandler(IWordWiseDbContext _context)
         : IRequestHandler<ReportClipCommand, Unit>
@@ -18,7 +19,7 @@ namespace WordWise.Application.Features.Clips.Commands.ReportClip
                 throw new BusinessException("Geçersiz bildirim nedeni.");
 
             var clip = await _context.VideoClips
-                .FirstOrDefaultAsync(x => x.Id == request.ClipId && x.IsPublished, cancellationToken)
+                .FirstOrDefaultAsync(x => x.Id == request.ClipId && !x.IsRejected, cancellationToken) // yayında olmayan (kullanıcının kendi eklediği video) klipler de bildirilebilir
                 ?? throw new NotFoundException(nameof(VideoClip), request.ClipId);
 
             var note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim();
@@ -35,12 +36,14 @@ namespace WordWise.Application.Features.Clips.Commands.ReportClip
                     UserId = request.UserId,
                     Reason = reason,
                     Note = note,
+                    HideFromReporter = request.HideFromMe,
                 }, cancellationToken);
             }
             else
             {
                 existing.Reason = reason;
                 existing.Note = note;
+                existing.HideFromReporter = request.HideFromMe;
                 existing.Status = "Open";
             }
 

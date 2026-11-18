@@ -88,11 +88,11 @@ public class LearnerClipTests
     }
 
     [Fact]
-    public async Task Report_rejects_unknown_reason_and_unpublished_clip()
+    public async Task Report_rejects_unknown_reason_and_rejected_clip()
     {
         await using var context = CreateContext();
         var published = Clip(published: true);
-        var hidden = Clip(published: false);
+        var hidden = Clip(published: true, rejected: true);
         context.VideoClips.AddRange(published, hidden);
         await context.SaveChangesAsync();
         var handler = new ReportClipCommandHandler(context);
@@ -101,6 +101,42 @@ public class LearnerClipTests
             handler.Handle(new ReportClipCommand(Guid.NewGuid(), published.Id, "banana", null), default));
         await Assert.ThrowsAsync<NotFoundException>(() =>
             handler.Handle(new ReportClipCommand(Guid.NewGuid(), hidden.Id, "Quality", null), default));
+    }
+
+    [Fact]
+    public async Task Reporting_with_hide_off_keeps_the_clip_visible_and_hide_on_removes_it()
+    {
+        await using var context = CreateContext();
+        var clip = Clip(published: true);
+        context.VideoClips.Add(clip);
+        await context.SaveChangesAsync();
+        var user = Guid.NewGuid();
+        var report = new ReportClipCommandHandler(context);
+        var list = new GetLearnerClipsQueryHandler(context);
+
+        await report.Handle(new ReportClipCommand(user, clip.Id, "Quality", null, HideFromMe: false), default);
+        Assert.Single(await list.Handle(new GetLearnerClipsQuery(user, 20), default)); // yine görünür
+        Assert.False((await context.ClipReports.SingleAsync()).HideFromReporter);
+
+        await report.Handle(new ReportClipCommand(user, clip.Id, "Quality", null, HideFromMe: true), default);
+        Assert.Empty(await list.Handle(new GetLearnerClipsQuery(user, 20), default)); // artık gösterilmez
+        Assert.Single(await context.ClipReports.ToListAsync()); // tek kayıt güncellendi
+    }
+
+    [Fact]
+    public async Task Unpublished_clips_of_a_users_own_video_can_be_reported_and_saved()
+    {
+        await using var context = CreateContext();
+        var own = Clip(published: false);
+        context.VideoClips.Add(own);
+        await context.SaveChangesAsync();
+        var user = Guid.NewGuid();
+
+        await new ReportClipCommandHandler(context).Handle(new ReportClipCommand(user, own.Id, "CaptionSync", null), default);
+        await new SaveClipCommandHandler(context).Handle(new SaveClipCommand(user, own.Id), default);
+
+        Assert.Single(await context.ClipReports.ToListAsync());
+        Assert.Single(await new GetSavedClipsQueryHandler(context).Handle(new GetSavedClipsQuery(user), default));
     }
 
     [Fact]

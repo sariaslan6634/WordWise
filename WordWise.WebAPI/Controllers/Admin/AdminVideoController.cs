@@ -8,6 +8,7 @@ using WordWise.Application.Features.Clips.Commands.GenerateClips;
 using WordWise.Application.Features.Clips.Commands.ReviewClip;
 using WordWise.Application.Features.Clips.Commands.RunDiscovery;
 using WordWise.Application.Features.Clips.Models;
+using WordWise.Application.Features.Clips.Services;
 using WordWise.Application.Features.Clips.Dtos;
 using WordWise.Application.Features.Clips.Queries.GetClips;
 using WordWise.Application.Features.Videos.Commands.ApproveVideoCandidate;
@@ -80,6 +81,15 @@ namespace WordWise.WebAPI.Controllers.Admin
             var result = await _mediator.Send(new RunDiscoveryCommand(), cancellationToken);
             return Ok(ApiResponse<DiscoveryRunResult>.Ok(result,
                 $"{result.VideosProcessed} videos processed, {result.ClipsCreated} clips created, {result.ClipsPublished} published."));
+        }
+
+        /// <summary>"Klip getir" butonunun kalan tıklama hakkı ve (hak bittiyse) tekrar tıklanabileceği an.</summary>
+        [HttpGet("auto-discovery/status")]
+        [ProducesResponseType(typeof(ApiResponse<DiscoveryRunStatus>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetAutoDiscoveryStatus(CancellationToken cancellationToken)
+        {
+            var status = await _mediator.Send(new GetDiscoveryRunStatusQuery(), cancellationToken);
+            return Ok(ApiResponse<DiscoveryRunStatus>.Ok(status));
         }
 
         [HttpGet("clips")]

@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { connection } from "next/server";
 import type { DashboardStats } from "@/lib/contracts";
-import { getAdminPendingContent, getAdminStats } from "@/lib/server-api";
+import { getAdminDiscoveryStatus, getAdminPendingContent, getAdminStats } from "@/lib/server-api";
 import { getSession } from "@/lib/session";
+import DiscoveryRunButton from "./discovery-run-button";
 
 export const instant = false;
 
@@ -33,7 +34,7 @@ function getChartDays(stats: DashboardStats) {
 export default async function AdminDashboardPage() {
   await connection();
   const { token, user } = await getSession();
-  const [apiStats, pendingContent] = await Promise.all([getAdminStats(token), getAdminPendingContent(token)]);
+  const [apiStats, pendingContent, discoveryStatus] = await Promise.all([getAdminStats(token), getAdminPendingContent(token), getAdminDiscoveryStatus(token)]);
   const stats = apiStats ?? emptyStats;
   const chartDays = getChartDays(stats);
   const maxUsers = Math.max(...chartDays.map((day) => day.users), 1);
@@ -49,7 +50,7 @@ export default async function AdminDashboardPage() {
   return <div className="admin-content">
     <div className="admin-page-heading">
       <div><div className="eyebrow"><span className="eyebrow-dot"/> WORDWISE STUDIO</div><h1>Günaydın, {user?.name?.split(" ")[0] ?? "Admin"} <span>✳</span></h1><p>Platformundaki gelişme yolculuğuna göz at.</p></div>
-      <div className="heading-actions"><span className={`data-pill ${apiStats ? "live" : "preview"}`}><i/>{apiStats ? "Canlı API verisi" : "API bağlantısı yok"}</span><span className="date-range-label">◷ &nbsp;Son 30 gün</span></div>
+      <div className="heading-actions"><DiscoveryRunButton initialStatus={discoveryStatus}/><span className={`data-pill ${apiStats ? "live" : "preview"}`}><i/>{apiStats ? "Canlı API verisi" : "API bağlantısı yok"}</span><span className="date-range-label">◷ &nbsp;Son 30 gün</span></div>
     </div>
     {!apiStats && <div className="preview-banner warning"><span>ⓘ</span><div><b>Dashboard verileri alınamadı.</b><small>API bağlantısını kontrol et. Ekrandaki değerler sıfırdır; örnek veri değildir.</small></div></div>}
 

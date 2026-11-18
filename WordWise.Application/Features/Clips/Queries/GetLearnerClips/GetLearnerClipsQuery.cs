@@ -30,7 +30,7 @@ namespace WordWise.Application.Features.Clips.Queries.GetLearnerClips
             else
             {
                 var reportedByUser = _context.ClipReports
-                    .Where(r => r.UserId == request.UserId)
+                    .Where(r => r.UserId == request.UserId && r.HideFromReporter)
                     .Select(r => r.ClipId);
                 query = _context.VideoClips.Where(c => c.IsPublished && !c.IsRejected && !reportedByUser.Contains(c.Id));
                 if (request.ExcludeBurnedIn) query = query.Where(c => !c.HasBurnedInCaptions);

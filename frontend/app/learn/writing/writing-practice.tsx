@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ClipReportDialog from "@/components/clip-report-dialog";
 import SyncedCaptionPlayer from "@/components/synced-caption-player";
 import type { LearnerClip } from "@/lib/contracts";
 import { canonTyped, isSentenceCorrect, isWordCorrect, joinTyped, normalizeInput, parseSentence, revealHint, splitTyped, wordSlots } from "@/lib/dictation";
@@ -40,6 +41,8 @@ export default function WritingPractice({ initialClips }: { initialClips: Learne
   const [index, setIndex] = useState(0);
   const [custom, setCustom] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [savingClip, setSavingClip] = useState(false);
   const [url, setUrl] = useState("");
   const [playNo, setPlayNo] = useState(1);
   const [hintKey, setHintKey] = useState<HintKey | null>(null);
@@ -139,7 +142,7 @@ export default function WritingPractice({ initialClips }: { initialClips: Learne
   // Kısayol tuşu: basınca ipucu verir (kutuya odaklı olmasa da).
   const takeHintRef = useRef<() => void>(() => undefined);
   useEffect(() => {
-    if (!hintKeyOn || !hintKey || capturing || modalOpen) return;
+    if (!hintKeyOn || !hintKey || capturing || modalOpen || reportOpen) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.code !== hintKey.code || event.repeat) return;
       event.preventDefault();
@@ -147,10 +150,10 @@ export default function WritingPractice({ initialClips }: { initialClips: Learne
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [hintKeyOn, hintKey, capturing, modalOpen]);
+  }, [hintKeyOn, hintKey, capturing, modalOpen, reportOpen]);
 
   // Yeni klipte yazı alanına odaklan.
-  useEffect(() => { if (clip && !modalOpen) inputRef.current?.focus(); }, [clip?.id, modalOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (clip && !modalOpen && !reportOpen) inputRef.current?.focus(); }, [clip?.id, modalOpen, reportOpen]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (modalOpen) urlRef.current?.focus(); }, [modalOpen]);
   useEffect(() => {
     if (!modalOpen) return;
@@ -232,34 +235,65 @@ export default function WritingPractice({ initialClips }: { initialClips: Learne
     })}
   </p>;
 
+  function openModal() { setModalError(""); setModalOpen(true); }
+
+  function openReport() { clearTimer(); setHasInteracted(true); setReportOpen(true); }
+  function closeReport(hidden: boolean) {
+    setReportOpen(false);
+    if (hidden && clip) {
+      // "Bana Gösterme" açıkken bildirilen klip listeden kalkar, sıradaki klip gelir.
+      setClips((current) => current.filter((item) => item.id !== clip.id));
+      goTo(index);
+    }
+  }
+
+  // Kaydet / kayıttan çıkar (Listening ile aynı): kaydedilenler /learn/clips/saved sayfasında listelenir.
+  async function toggleSaveClip() {
+    if (!clip || savingClip) return;
+    const next = !clip.isSaved;
+    const id = clip.id;
+    const mark = (value: boolean) => setClips((current) => current.map((item) => (item.id === id ? { ...item, isSaved: value } : item)));
+    setSavingClip(true); setError("");
+    mark(next); // anında tepki ver; hata olursa geri al
+    try {
+      await request<unknown>(`Clips/${encodeURIComponent(id)}/save`, { method: next ? "POST" : "DELETE" });
+    } catch (failure) {
+      mark(!next);
+      setError(failure instanceof Error ? failure.message : "Klip kaydedilemedi.");
+    } finally { setSavingClip(false); }
+  }
+
   const finished = !clip;
   return <div className="cinema-stage write-stage">
-    <div className="cinema-bar write-bar">
-      <button type="button" className="cinema-button primary" onClick={() => { setModalError(""); setModalOpen(true); }}>Video Ekle</button>
-      {custom && <button type="button" className="cinema-button" onClick={() => void loadAuto()} disabled={loading}>Bizim kliplere dön</button>}
-      <div className="cinema-bar-end"><span className="write-score">Çözülen: {solved}</span></div>
-    </div>
-
     {error && <p className="cinema-error" role="alert">{error}</p>}
 
     {loading && !clip ? <p className="cinema-empty">Hazırlanıyor…</p> : finished ? <div className="cinema-done">
       <h2>{clips.length === 0 ? "Alıştırma yok" : "Bu seri bitti 🎉"}</h2>
       <p>{custom ? "Videodaki cümleler bitti. Yeni bir video ekle ya da bizim kliplere dön." : "Tüm cümleleri çözdün. Yeni bir seri için devam edebilirsin."}</p>
-      <button type="button" className="cinema-button primary" onClick={() => void loadAuto()} disabled={loading}>{loading ? "Yükleniyor…" : "Yeni klipler getir"}</button>
+      <div className="write-done-actions">
+        <button type="button" className="cinema-button primary" onClick={() => void loadAuto()} disabled={loading}>{loading ? "Yükleniyor…" : "Yeni klipler getir"}</button>
+        <button type="button" className="cinema-button" onClick={openModal}>Video Ekle</button>
+      </div>
     </div> : <>
-      <SyncedCaptionPlayer
-        key={clip.id}
-        variant="cinema"
-        videoId={clip.youtubeId}
-        startSec={clip.startSec}
-        endSec={clip.endSec}
-        text={clip.text}
-        loops={repeat ? 3 : 1}
-        autoPlay={hasInteracted || index > 0}
-        showCaption={false}
-        overlay={subtitle}
-        onPlayChange={setPlayNo}
-      />
+      <div className="clip-stage">
+        <SyncedCaptionPlayer
+          key={clip.id}
+          variant="cinema"
+          videoId={clip.youtubeId}
+          startSec={clip.startSec}
+          endSec={clip.endSec}
+          text={clip.text}
+          loops={repeat ? 3 : 1}
+          autoPlay={hasInteracted || index > 0}
+          showCaption={false}
+          paused={reportOpen}
+          overlay={subtitle}
+          onPlayChange={setPlayNo}
+        />
+        <button type="button" className={`clip-save${clip.isSaved ? " is-saved" : ""}`} onClick={toggleSaveClip} disabled={savingClip} aria-pressed={clip.isSaved === true} aria-label={clip.isSaved ? "Kayıtlılardan çıkar" : "Klibi kaydet"} title={clip.isSaved ? "Kayıtlılardan çıkar" : "Klibi kaydet"}>
+          <svg viewBox="0 0 24 24" width="20" height="20" fill={clip.isSaved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4.5L5 21V4a1 1 0 0 1 1-1z" /></svg>
+        </button>
+      </div>
 
       <div className={`write-panel${done ? " is-done" : ""}`}>
         <div className="write-tools">
@@ -290,13 +324,19 @@ export default function WritingPractice({ initialClips }: { initialClips: Learne
 
         <div className="write-actions">
           <button type="button" className="cinema-button write-hint" onClick={takeHint} disabled={done}>💡 İpucu{hintKeyOn && hintKey ? <kbd className="write-kbd">{hintKey.label}</kbd> : null}</button>
-          {repeat && !done && <span className="write-plays" title="Kaçıncı oynatma">▶ {Math.min(playNo, 3)}/3</span>}
+          <button type="button" className="cinema-button primary" onClick={openModal}>Video Ekle</button>
+          {custom && <button type="button" className="cinema-button" onClick={() => void loadAuto()} disabled={loading}>Bizim kliplere dön</button>}
           <span className="write-legend"><i className="is-correct"/>doğru <i className="is-hint"/>ipucu <i className="is-wrong"/>yanlış</span>
+          {repeat && !done && <span className="write-plays" title="Kaçıncı oynatma">▶ {Math.min(playNo, 3)}/3</span>}
           <span className="write-progress">{index + 1} / {clips.length}{done ? " · Doğru! 🎉" : ""}</span>
+          <button type="button" className="cinema-button report" onClick={openReport}>⚑ Videoyu bildir</button>
+          <span className="write-score">Çözülen: {solved}</span>
           <button type="button" className="cinema-button" onClick={() => goTo(index + 1)}>{done ? "Sonraki →" : "Atla →"}</button>
         </div>
       </div>
     </>}
+
+    {reportOpen && clip && <ClipReportDialog clipId={clip.id} onClose={closeReport}/>}
 
     {modalOpen && <div className="cinema-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setModalOpen(false); }}>
       <form className="cinema-modal" role="dialog" aria-modal="true" aria-label="Video ekle" onSubmit={(event) => { event.preventDefault(); void loadCustom(); }}>

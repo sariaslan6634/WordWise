@@ -77,7 +77,7 @@ namespace WordWise.WebAPI.Controllers
             CancellationToken cancellationToken)
         {
             var userId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-            await _mediator.Send(new ReportClipCommand(userId, clipId, request.Reason, request.Note), cancellationToken);
+            await _mediator.Send(new ReportClipCommand(userId, clipId, request.Reason, request.Note, request.HideFromMe), cancellationToken);
             return Ok(ApiResponse.OkNoData("Video bildirildi. Teşekkürler, ekibimiz inceleyecek."));
         }
     }

@@ -13,6 +13,9 @@ namespace WordWise.Domain.Entities
         public ClipReportReason Reason { get; set; }
         public string? Note { get; set; }
 
+        /// <summary>true ise bildiren kullanıcıya bu klip bir daha gösterilmez (varsayılan); false ise bildirse de görmeye devam eder.</summary>
+        public bool HideFromReporter { get; set; } = true;
+
         /// <summary>"Open" (admin incelemesi bekliyor) veya "Resolved".</summary>
         public string Status { get; set; } = "Open";
     }

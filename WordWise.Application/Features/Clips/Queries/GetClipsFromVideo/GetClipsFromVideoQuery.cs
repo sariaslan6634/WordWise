@@ -58,7 +58,17 @@ namespace WordWise.Application.Features.Clips.Queries.GetClipsFromVideo
             var chosen = all || existing.Count <= GetClipsFromVideoQuery.AutoClipCount
                 ? existing
                 : existing.OrderBy(_ => Random.Shared.Next()).Take(GetClipsFromVideoQuery.AutoClipCount).OrderBy(c => c.StartSec).ToList();
-            return chosen.Select(c => LearnerClipMapper.ToDto(c, isSaved: false)).ToList();
+            var chosenIds = chosen.Select(c => c.Id).ToList();
+            var savedIds = (await _context.UserClips
+                .Where(u => u.UserId == request.UserId && chosenIds.Contains(u.ClipId))
+                .Select(u => u.ClipId)
+                .ToListAsync(cancellationToken)).ToHashSet();
+            // Kullanıcının bu videodan bildirip "bana gösterme" dediği klipler hariç.
+            var hidden = (await _context.ClipReports
+                .Where(r => r.UserId == request.UserId && r.HideFromReporter && chosenIds.Contains(r.ClipId))
+                .Select(r => r.ClipId)
+                .ToListAsync(cancellationToken)).ToHashSet();
+            return chosen.Where(c => !hidden.Contains(c.Id)).Select(c => LearnerClipMapper.ToDto(c, savedIds.Contains(c.Id))).ToList();
         }
 
         private Task<List<VideoClip>> LoadPassedAsync(string youtubeId, CancellationToken cancellationToken) =>

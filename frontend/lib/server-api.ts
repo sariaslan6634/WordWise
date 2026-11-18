@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { ReviewWord, LearnerClip, VideoClip, AdminUser, ApiEnvelope, AuthResponse, DashboardStats, PagedResponse, PendingContent, RemovedWord, SavedWord, UserProfile, VideoCandidate, VideoCandidateReview, WordDetail, WordSummary } from "./contracts";
+import type { ReviewWord, LearnerClip, VideoClip, AdminUser, ApiEnvelope, AuthResponse, DashboardStats, DiscoveryRunStatus, PagedResponse, PendingContent, RemovedWord, SavedWord, UserProfile, VideoCandidate, VideoCandidateReview, WordDetail, WordSummary } from "./contracts";
 
 export const apiBaseUrl = (process.env.WORDWISE_API_URL || "http://localhost:5271").replace(/\/$/, "");
 
@@ -28,6 +28,10 @@ export function readAuthResponse(value: unknown): AuthResponse | null {
   const envelope = value as ApiEnvelope<AuthResponse>;
   if (!envelope.success || !envelope.data?.token) return null;
   return envelope.data;
+}
+
+export async function getAdminDiscoveryStatus(token?: string) {
+  return apiRequest<DiscoveryRunStatus>("/api/AdminVideo/auto-discovery/status", token);
 }
 
 export async function getAdminStats(token?: string) {

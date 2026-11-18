@@ -15,6 +15,29 @@ export interface AuthResponse {
   expiresAt: string;
 }
 
+/** Admin "Klip getir" butonunun günlük tıklama hakkı durumu. */
+export interface DiscoveryRunStatus {
+  allowedPerWindow: number;
+  used: number;
+  remaining: number;
+  windowHours: number;
+  nextAvailableAt: string | null;
+  serverNow: string;
+  videosPerClick: number;
+  videosInWindow: number;
+  clipsInWindow: number;
+  publishedInWindow: number;
+}
+
+export interface DiscoveryRunResult {
+  query: string;
+  videosFound: number;
+  videosProcessed: number;
+  clipsCreated: number;
+  clipsPublished: number;
+  failures: string[];
+}
+
 export interface DashboardStats {
   totalWords: number;
   totalVideos: number;

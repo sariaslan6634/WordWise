@@ -4,20 +4,14 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import SyncedCaptionPlayer from "@/components/synced-caption-player";
 import WordLookupPanel, { warmUpVoices } from "@/components/word-lookup-panel";
-import type { ClipReportReason, LearnerClip } from "@/lib/contracts";
+import ClipReportDialog from "@/components/clip-report-dialog";
+import type { LearnerClip } from "@/lib/contracts";
 
 type Envelope<T> = { success?: boolean; message?: string; data?: T };
 
 const AUTO_NEXT_DELAY_MS = 2000;
 const LOOP_COUNT = 3;
 const SETTINGS_KEY = "wordwise-clip-settings";
-
-const reasons: { value: ClipReportReason; label: string }[] = [
-  { value: "Quality", label: "Video kalitesi kötü" },
-  { value: "CaptionSync", label: "Altyazı videoyla uyuşmuyor" },
-  { value: "Inappropriate", label: "Uygunsuz içerik" },
-  { value: "Other", label: "Diğer" },
-];
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`/api/backend/api/${path}`, init);
@@ -64,17 +58,12 @@ export default function ClipPractice({ initialClips, initialSavedOnly = false }:
   const [waiting, setWaiting] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
-  const [reportDone, setReportDone] = useState(false);
-  const [reason, setReason] = useState<ClipReportReason>("CaptionSync");
-  const [note, setNote] = useState("");
-  const [reporting, setReporting] = useState(false);
   const [error, setError] = useState("");
   const [loadingMore, setLoadingMore] = useState(false);
   const [lookup, setLookup] = useState<{ word: string; n: number } | null>(null);
   const [savedOnly, setSavedOnly] = useState(initialSavedOnly);
   const [savingClip, setSavingClip] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const modalRef = useRef<HTMLDivElement>(null);
 
   const clip = clips[index];
 
@@ -134,42 +123,15 @@ export default function ClipPractice({ initialClips, initialSavedOnly = false }:
     clearTimer();
     setHasInteracted(true);
     setError("");
-    setReportDone(false);
     setReportOpen(true);
   }
 
-  const closeReport = useCallback(() => {
-    if (reporting) return;
-    if (reportDone && clip) {
-      setClips((current) => current.filter((item) => item.id !== clip.id)); // bildirilen klip bir daha gösterilmez
+  function closeReport(hidden: boolean) {
+    if (hidden && clip) {
+      setClips((current) => current.filter((item) => item.id !== clip.id)); // "Bana Gösterme" açıksa bildirilen klip bir daha gösterilmez
     }
     setReportOpen(false);
-    setReportDone(false);
-    setNote("");
     setError("");
-  }, [reporting, reportDone, clip]);
-
-  useEffect(() => {
-    if (!reportOpen) return;
-    modalRef.current?.focus();
-    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") closeReport(); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [reportOpen, closeReport]);
-
-  async function submitReport() {
-    if (!clip) return;
-    setReporting(true); setError("");
-    try {
-      await request<unknown>(`Clips/${encodeURIComponent(clip.id)}/report`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason, note: note.trim() || null }),
-      });
-      setReportDone(true);
-    } catch (value) {
-      setError(value instanceof Error ? value.message : "Bildirim gönderilemedi.");
-    } finally { setReporting(false); }
   }
 
   async function loadMore(onlySaved = savedOnly) {
@@ -282,26 +244,6 @@ export default function ClipPractice({ initialClips, initialSavedOnly = false }:
 
     {lookup && clip && <WordLookupPanel word={lookup.word} playKey={lookup.n} onClose={closeLookup}/>}
 
-    {reportOpen && clip && <div className="cinema-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) closeReport(); }}>
-      <div className="cinema-modal" role="dialog" aria-modal="true" aria-labelledby="report-title" tabIndex={-1} ref={modalRef}>
-        {reportDone ? <div className="cinema-success">
-          <span className="cinema-success-icon" aria-hidden="true">✓</span>
-          <h2 id="report-title">Video bildirildi</h2>
-          <p>Teşekkürler, ekibimiz inceleyecek. Bu video artık sana gösterilmeyecek.</p>
-          <button type="button" className="cinema-button primary" onClick={closeReport}>Kapat</button>
-        </div> : <form onSubmit={(event) => { event.preventDefault(); void submitReport(); }} style={{ display: "grid", gap: 16 }}>
-          <div><h2 id="report-title">Videoyu bildir</h2><p>Video durduruldu. Bu videoyla ilgili sorun nedir?</p></div>
-          <fieldset className="cinema-reasons">
-            {reasons.map((item) => <label key={item.value} className="cinema-reason"><input type="radio" name="clip-report-reason" value={item.value} checked={reason === item.value} onChange={() => setReason(item.value)}/>{item.label}</label>)}
-          </fieldset>
-          <textarea placeholder="İstersen kısaca açıkla (isteğe bağlı)" maxLength={500} value={note} onChange={(event) => setNote(event.target.value)} aria-label="Açıklama (isteğe bağlı)"/>
-          {error && <p className="cinema-error" role="alert">{error}</p>}
-          <div className="cinema-modal-actions">
-            <button type="button" className="cinema-button" onClick={closeReport} disabled={reporting}>Vazgeç</button>
-            <button type="submit" className="cinema-button primary" disabled={reporting}>{reporting ? "Gönderiliyor…" : "Bildir"}</button>
-          </div>
-        </form>}
-      </div>
-    </div>}
+    {reportOpen && clip && <ClipReportDialog clipId={clip.id} onClose={closeReport}/>}
   </div>;
 }

@@ -15,6 +15,7 @@ namespace WordWise.Infrastructure.Persistence.Configuyrations
 
             builder.Property(x => x.Note).HasMaxLength(500).IsRequired(false);
             builder.Property(x => x.Status).IsRequired().HasMaxLength(20);
+            builder.Property(x => x.HideFromReporter).IsRequired().HasDefaultValue(true);
 
             builder.HasOne(x => x.Clip)
                 .WithMany()
