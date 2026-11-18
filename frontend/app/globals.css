@@ -179,3 +179,4 @@ a.cinema-button{display:inline-flex;align-items:center;gap:6px;text-decoration:n
 html:has(.saved-clips-page){scrollbar-gutter:stable}
 .saved-clips-page{width:100%;min-width:0;min-height:60vh}
 .saved-clips-page .learn-heading-side{min-width:150px;justify-content:flex-end}
+.write-actions{justify-content:space-between;width:100%}.write-actions-group{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}.write-note .write-legend{margin-left:10px;white-space:nowrap}

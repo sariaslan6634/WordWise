@@ -320,18 +320,21 @@ export default function WritingPractice({ initialClips }: { initialClips: Learne
           disabled={done}
           aria-label="Duyduğun cümle"
         />
-        <p className="write-note">Özel isimler ve ' - işaretleri otomatik gelir; boşluk gerekmez, doğru kelime kendiliğinden geçer.</p>
+        <p className="write-note">Özel isimler ve ' - işaretleri otomatik gelir; boşluk gerekmez, doğru kelime kendiliğinden geçer. <span className="write-legend"><i className="is-correct"/>doğru <i className="is-hint"/>ipucu <i className="is-wrong"/>yanlış</span></p>
 
         <div className="write-actions">
-          <button type="button" className="cinema-button write-hint" onClick={takeHint} disabled={done}>💡 İpucu{hintKeyOn && hintKey ? <kbd className="write-kbd">{hintKey.label}</kbd> : null}</button>
-          <button type="button" className="cinema-button primary" onClick={openModal}>Video Ekle</button>
-          {custom && <button type="button" className="cinema-button" onClick={() => void loadAuto()} disabled={loading}>Bizim kliplere dön</button>}
-          <span className="write-legend"><i className="is-correct"/>doğru <i className="is-hint"/>ipucu <i className="is-wrong"/>yanlış</span>
-          {repeat && !done && <span className="write-plays" title="Kaçıncı oynatma">▶ {Math.min(playNo, 3)}/3</span>}
-          <span className="write-progress">{index + 1} / {clips.length}{done ? " · Doğru! 🎉" : ""}</span>
-          <button type="button" className="cinema-button report" onClick={openReport}>⚑ Videoyu bildir</button>
-          <span className="write-score">Çözülen: {solved}</span>
-          <button type="button" className="cinema-button" onClick={() => goTo(index + 1)}>{done ? "Sonraki →" : "Atla →"}</button>
+          <div className="write-actions-group">
+            <button type="button" className="cinema-button write-hint" onClick={takeHint} disabled={done}>💡 İpucu{hintKeyOn && hintKey ? <kbd className="write-kbd">{hintKey.label}</kbd> : null}</button>
+            <button type="button" className="cinema-button primary" onClick={openModal}>Video Ekle</button>
+            {custom && <button type="button" className="cinema-button" onClick={() => void loadAuto()} disabled={loading}>Bizim kliplere dön</button>}
+          </div>
+          <div className="write-actions-group">
+            {repeat && !done && <span className="write-plays" title="Kaçıncı oynatma">▶ {Math.min(playNo, 3)}/3</span>}
+            <span className="write-progress">{index + 1} / {clips.length}{done ? " · Doğru! 🎉" : ""}</span>
+            <button type="button" className="cinema-button report" onClick={openReport}>⚑ Videoyu bildir</button>
+            <span className="write-score">Çözülen: {solved}</span>
+            <button type="button" className="cinema-button" onClick={() => goTo(index + 1)}>{done ? "Sonraki →" : "Atla →"}</button>
+          </div>
         </div>
       </div>
     </>}
